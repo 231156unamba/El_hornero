@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Panel de Pedido - El Hornero</title>
+  <script>
+    // Verificar sesión al cargar
+    if (!localStorage.getItem("token") || localStorage.getItem("rol") !== "mesero") {
+      window.location.href = "login.html";
+    }
+  </script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #fff6f0; /* Fondo más claro y cálido */
+      margin: 0;
+      padding: 0;
+    }
+    header {
+      background: #ff6f00; /* Naranja fuerte */
+      color: white;
+      padding: 18px;
+      text-align: center;
+      font-size: 26px;
+      letter-spacing: 1px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .header-title {
+      flex: 1;
+      text-align: center;
+    }
+    .header-user {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+      font-size: 14px;
+    }
+    .btn-logout {
+      background: #e64a19;
+      color: white;
+      border: none;
+      padding: 8px 15px;
+      border-radius: 5px;
+      cursor: pointer;
+      font-weight: bold;
+      transition: 0.2s;
+    }
+    .btn-logout:hover {
+      background: #d84315;
+    }
+    .container {
+      max-width: 900px;
+      margin: 25px auto;
+      background: #fff;
+      padding: 25px;
+      border-radius: 14px;
+      box-shadow: 0 3px 14px rgba(0,0,0,0.18);
+    }
+    h2 { margin-top: 0; color: #e65100; }
+    h3 { color: #d84315; margin-top: 30px; }
+    label { font-weight: bold; margin-top: 15px; display: block; color: #bf360c; }
+    select, input, textarea {
+      width: 100%;
+      padding: 12px;
+      border-radius: 8px;
+      border: 1px solid #d9a082;
+      font-size: 16px;
+      margin-top: 6px;
+      background: #fff3e0;
+    }
+    .tarjeta-pedido {
+      border: 1px solid #ffab80;
+      border-radius: 10px;
+      padding: 18px;
+      background: #fff8f0; /* Más separación visual */
+      margin-top: 20px; /* Más espacio entre tarjetas */
+      box-shadow: 0 2px 6px rgba(255,138,101,0.3);
+    }
+    .grid-2 { display: grid; grid-template-columns: 1fr 80px; gap: 15px; }
+    .btn {
+      background: #ff6e00;
+      color: white;
+      border: none;
+      padding: 12px 18px;
+      font-size: 16px;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: 0.2s;
+    }
+    .btn:hover { background: #ff8a40; }
+    .btn-small {
+      padding: 7px 12px;
+      font-size: 14px;
+      background: #e64a19;
+    }
+    .btn-small:hover {
+      background: #ff7043;
+    }
+    .row { display: flex; gap: 15px; margin-top: 10px; }
+    .row div { flex: 1; }
+    .item-header {
+      font-weight: bold;
+      margin-bottom: 10px;
+      display: flex;
+      justify-content: space-between;
+      color: #d84315;
+      font-size: 17px;
+    }
+    .item-line {
+      display: flex;
+      justify-content: space-between;
+      padding: 8px 0;
+      border-bottom: 1px solid #ffe0cc;
+      color: #5d4037;
+      font-size: 15px;
+    }
+    .total-box {
+      font-size: 24px;
+      font-weight: bold;
+      text-align: right;
+      margin-top: 30px;
+      color: #bf360c;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="header-title">Panel de Pedidos - El Hornero</div>
+    <div class="header-user">
+      <span id="nombreUsuario"></span>
+      <button class="btn-logout" onclick="cerrarSesion()">Salir</button>
+    </div>
+  </header>
+  <div class="container">
+    <h2>Crear Pedido</h2>
+
+    <label>Mesa</label>
+    <select id="mesa">
+      <option value="">Seleccione una mesa</option>
+    </select>
+
+    <label>Agregar Plato</label>
+    <div class="row">
+      <div>
+        <select id="plato">
+        </select>
+      </div>
+      <div>
+        <input type="number" id="cantidad" min="1" placeholder="Cant." />
+      </div>
+      <button class="btn" onclick="agregarTarjeta()">+</button>
+    </div>
+
+    <label>Ajuste de precio externo</label>
+    <div class="row">
+      <input type="number" id="ajuste_precio" placeholder="Monto extra" step="0.10" />
+      <textarea id="ajuste_descripcion" placeholder="Motivo del ajuste"></textarea>
+    </div>
+
+    <h3>Detalle del Pedido</h3>
+    <div id="listaPedidos"></div>
+
+    <div class="total-box">Total: S/ <span id="total">0.00</span></div>
+
+    <button class="btn" onclick="crearPedido()" style="width:100%; margin-top:20px; font-size:18px;">Crear Pedido</button>
+  </div>
+
+  <script>
+    let total = 0;
+    const API_URL = "http://localhost:8080/api"; // Ajusta la URL según tu backend
+
+    // Obtener datos del usuario
+    function obtenerDatosUsuario() {
+      const usuario = JSON.parse(localStorage.getItem("usuario") || "{}");
+      return usuario;
+    }
+
+    // Mostrar nombre del usuario en la cabecera
+    function mostrarUsuario() {
+      const usuario = obtenerDatosUsuario();
+      const nombreUsuario = document.getElementById("nombreUsuario");
+      if (usuario && usuario.nombre) {
+        nombreUsuario.textContent = `👤 ${usuario.nombre} ${usuario.apellido}`;
+      }
+    }
+
+    // Cerrar sesión
+    function cerrarSesion() {
+      if (confirm("¿Deseas cerrar sesión?")) {
+        localStorage.removeItem("token");
+        localStorage.removeItem("usuario");
+        localStorage.removeItem("rol");
+        window.location.href = "login.html";
+      }
+    }
+
+
+    // Datos estáticos para la demo (pollería)
+    const MESAS_DEMO = [
+      { id: 1, numero: 1 },
+      { id: 2, numero: 2 },
+      { id: 3, numero: 3 },
+      { id: 4, numero: 4 },
+      { id: 5, numero: 5 }
+    ];
+
+    const PLATOS_DEMO = [
+      { id: 1, nombre: "Pollo a la brasa", precio: 38.00 },
+      { id: 2, nombre: "1/2 Pollo a la brasa", precio: 22.00 },
+      { id: 3, nombre: "1/4 Pollo a la brasa", precio: 14.00 },
+      { id: 4, nombre: "Papa frita", precio: 8.00 },
+      { id: 5, nombre: "Ensalada", precio: 6.00 },
+      { id: 6, nombre: "Inca Kola 1L", precio: 9.00 },
+      { id: 7, nombre: "Chicha morada", precio: 7.00 }
+    ];
+
+    function cargarMesasDemo() {
+      const mesaSelect = document.getElementById("mesa");
+      MESAS_DEMO.forEach(mesa => {
+        let op = document.createElement("option");
+        op.value = mesa.id;
+        op.textContent = `Mesa ${mesa.numero}`;
+        mesaSelect.appendChild(op);
+      });
+    }
+
+    function cargarPlatosDemo() {
+      const platoSelect = document.getElementById("plato");
+      PLATOS_DEMO.forEach(p => {
+        let op = document.createElement("option");
+        op.value = p.id;
+        op.dataset.nombre = p.nombre;
+        op.dataset.precio = p.precio;
+        op.textContent = `${p.nombre} - S/ ${p.precio}`;
+        platoSelect.appendChild(op);
+      });
+    }
+
+    // Cargar datos al iniciar la página (demo)
+    document.addEventListener("DOMContentLoaded", () => {
+      mostrarUsuario();
+      cargarMesasDemo();
+      cargarPlatosDemo();
+    });
+
+    function agregarTarjeta() {
+      const platoSelect = document.getElementById("plato");
+      const selectedOption = platoSelect.options[platoSelect.selectedIndex];
+      
+      const nombre = selectedOption.dataset.nombre;
+      const precio = parseFloat(selectedOption.dataset.precio);
+      const cantidad = parseInt(document.getElementById('cantidad').value);
+
+      if (!cantidad || cantidad <= 0 || !nombre) return;
+
+      const subtotal = precio * cantidad;
+      total += subtotal;
+
+      const cont = document.getElementById("listaPedidos");
+      const card = document.createElement("div");
+      card.className = "tarjeta-pedido";
+
+      card.innerHTML = `
+        <div class="item-header">
+          <span>${nombre}</span>
+          <span>S/ ${subtotal.toFixed(2)}</span>
+        </div>
+        <div class="item-line">Cantidad: ${cantidad}</div>
+        <div class="item-line">Precio unitario: S/ ${precio}</div>
+        <button class="btn btn-small" onclick="eliminar(this, ${subtotal})">Eliminar</button>
+      `;
+
+      cont.appendChild(card);
+      actualizar();
+    }
+
+    function eliminar(boton, monto) {
+      boton.parentElement.remove();
+      total -= monto;
+      actualizar();
+    }
+
+    function actualizar() {
+      const extra = parseFloat(document.getElementById('ajuste_precio').value) || 0;
+      document.getElementById("total").textContent = (total + extra).toFixed(2);
+    }
+
+    // Crear pedido
+    async function crearPedido() {
+      const mesa = document.getElementById("mesa").value;
+      const tarjetas = document.querySelectorAll(".tarjeta-pedido");
+      
+      if (!mesa) {
+        alert("Por favor selecciona una mesa");
+        return;
+      }
+
+      if (tarjetas.length === 0) {
+        alert("Por favor agrega al menos un plato al pedido");
+        return;
+      }
+
+      const usuario = obtenerDatosUsuario();
+      const token = localStorage.getItem("token");
+      const ajuste_precio = parseFloat(document.getElementById('ajuste_precio').value) || 0;
+      const observaciones = document.getElementById('ajuste_descripcion').value;
+
+      // Construir detalle del pedido
+      const detalles = [];
+      tarjetas.forEach(tarjeta => {
+        const headerText = tarjeta.querySelector(".item-header span:first-child").textContent;
+        const cantidadText = tarjeta.querySelector(".item-line:nth-child(2)").textContent;
+        const precioText = tarjeta.querySelector(".item-line:nth-child(3)").textContent;
+
+        const cantidad = parseInt(cantidadText.split(": ")[1]);
+        const precio = parseFloat(precioText.split("S/ ")[1]);
+
+        detalles.push({
+          nombre: headerText,
+          cantidad: cantidad,
+          precio_unitario: precio,
+          subtotal: cantidad * precio
+        });
+      });
+
+      try {
+        const totalConAjuste = total + ajuste_precio;
+
+        const pedidoData = {
+          id_mesa: parseInt(mesa),
+          id_mesero: usuario.id_usuario,
+          precio_total: totalConAjuste,
+          observaciones: observaciones,
+          detalles: detalles,
+          ajuste_precio: ajuste_precio
+        };
+
+        const response = await fetch(`${API_URL}/pedidos`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}`
+          },
+          body: JSON.stringify(pedidoData)
+        });
+
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.mensaje || "Error al crear pedido");
+        }
+
+        const resultado = await response.json();
+        alert(`✓ Pedido creado exitosamente (ID: ${resultado.id_pedido})`);
+
+        // Limpiar formulario
+        document.getElementById("mesa").value = "";
+        document.getElementById("cantidad").value = "";
+        document.getElementById("ajuste_precio").value = "";
+        document.getElementById("ajuste_descripcion").value = "";
+        document.getElementById("listaPedidos").innerHTML = "";
+        total = 0;
+        actualizar();
+      } catch (error) {
+        console.error("Error al crear pedido:", error);
+        alert("Error: " + error.message);
+      }
+    }
+
+    document.getElementById('ajuste_precio').addEventListener('input', actualizar);
+  </script>
+</body>
+</html>

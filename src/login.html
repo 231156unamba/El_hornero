@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Demo - El Hornero</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: Arial, sans-serif;
+      background: linear-gradient(135deg, #ff6f00 0%, #ff8a40 100%);
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .login-container {
+      background: white;
+      padding: 40px;
+      border-radius: 15px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+      width: 100%;
+      max-width: 400px;
+    }
+
+    .logo-section {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+
+    .logo {
+      font-size: 50px;
+      margin-bottom: 15px;
+    }
+
+    .logo-text {
+      font-size: 28px;
+      font-weight: bold;
+      color: #ff6f00;
+    }
+
+    .subtitle {
+      font-size: 14px;
+      color: #999;
+      margin-top: 5px;
+    }
+
+    .form-group {
+      margin-bottom: 20px;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: bold;
+      color: #333;
+    }
+
+    input {
+      width: 100%;
+      padding: 12px;
+      border: 2px solid #ddd;
+      border-radius: 8px;
+      font-size: 16px;
+      transition: border-color 0.3s;
+    }
+
+    input:focus {
+      outline: none;
+      border-color: #ff6f00;
+    }
+
+    .error-message {
+      background: #ffebee;
+      color: #c62828;
+      padding: 12px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      display: none;
+    }
+
+    .success-message {
+      background: #e8f5e9;
+      color: #2e7d32;
+      padding: 12px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      display: none;
+    }
+
+    .btn-login {
+      width: 100%;
+      padding: 12px;
+      background: #ff6f00;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+
+    .btn-login:hover {
+      background: #ff8a40;
+    }
+
+    .btn-login:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+    }
+
+    .loading {
+      display: none;
+      text-align: center;
+      margin-top: 15px;
+    }
+
+    .spinner {
+      border: 3px solid #f3f3f3;
+      border-top: 3px solid #ff6f00;
+      border-radius: 50%;
+      width: 20px;
+      height: 20px;
+      animation: spin 1s linear infinite;
+      margin: 0 auto;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    .info-section {
+      background: #fff3e0;
+      padding: 15px;
+      border-radius: 8px;
+      margin-top: 20px;
+      font-size: 13px;
+      color: #666;
+      border-left: 4px solid #ff6f00;
+    }
+
+    .info-section strong {
+      display: block;
+      margin-bottom: 8px;
+      color: #ff6f00;
+    }
+  </style>
+</head>
+<body>
+  <div class="login-container">
+    <div class="logo-section">
+      <div class="logo">🍗</div>
+      <div class="logo-text">El Hornero</div>
+      <div class="subtitle">Sistema de Pedidos</div>
+    </div>
+
+    <div class="error-message" id="errorMessage"></div>
+    <div class="success-message" id="successMessage"></div>
+
+    <form id="loginForm">
+      <div class="form-group">
+        <label for="username">Usuario</label>
+        <input type="text" id="username" placeholder="Ingresa tu usuario" required />
+      </div>
+
+      <div class="form-group">
+        <label for="password">Contraseña</label>
+        <input type="password" id="password" placeholder="Ingresa tu contraseña" required />
+      </div>
+
+      <button type="submit" class="btn-login" id="btnLogin">Iniciar Sesión</button>
+
+      <div class="loading" id="loading">
+        <div class="spinner"></div>
+      </div>
+    </form>
+
+    <div class="info-section">
+      <strong>Version Demo</strong>
+    </div>
+  </div>
+
+  <script>
+    const API_URL = "http://localhost:8080/api"; // Ajusta según tu backend
+
+    const form = document.getElementById("loginForm");
+    const usernameInput = document.getElementById("username");
+    const passwordInput = document.getElementById("password");
+    const btnLogin = document.getElementById("btnLogin");
+    const errorMessage = document.getElementById("errorMessage");
+    const successMessage = document.getElementById("successMessage");
+    const loading = document.getElementById("loading");
+
+    // Limpiar sesión anterior al cargar la página
+    localStorage.removeItem("token");
+    localStorage.removeItem("usuario");
+    localStorage.removeItem("rol");
+
+    console.log("Login page loaded - redirects to pedido.html");
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+
+      const username = usernameInput.value.trim();
+      const password = passwordInput.value.trim();
+
+      if (!username || !password) {
+        mostrarError("Por favor ingresa usuario y contraseña");
+        return;
+      }
+
+      await iniciarSesion(username, password);
+    });
+
+    async function iniciarSesion(username, password) {
+      // Demo mode - guarda datos mínimos en localStorage y redirige a pedido.html
+      try {
+        localStorage.setItem("token", "demo-token");
+        localStorage.setItem("rol", "mesero");
+        const demoUser = { id_usuario: 1, nombre: username || 'Demo', apellido: '' };
+        localStorage.setItem("usuario", JSON.stringify(demoUser));
+      } catch (err) {
+        console.warn('No se pudo guardar en localStorage', err);
+      }
+      window.location.href = "pedido.html";
+    }
+
+    function redirigirPorRol(rol) {
+      // Siempre redirige a pedido.html
+      window.location.href = "pedido.html";
+    }
+
+    function mostrarError(mensaje) {
+      errorMessage.textContent = mensaje;
+      errorMessage.style.display = "block";
+      successMessage.style.display = "none";
+    }
+
+    function mostrarExito(mensaje) {
+      successMessage.textContent = mensaje;
+      successMessage.style.display = "block";
+      errorMessage.style.display = "none";
+    }
+  </script>
+</body>
+</html>
