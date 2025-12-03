@@ -20,12 +20,25 @@ CREATE TABLE pedido (
     fecha DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
--- Tabla de ventas
 CREATE TABLE venta (
     id INT AUTO_INCREMENT PRIMARY KEY,
     fecha DATE NOT NULL,
     monto DECIMAL(8,2) NOT NULL
 );
+
+-- Tabla de usuarios
+CREATE TABLE usuarios (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    usuario VARCHAR(50) NOT NULL UNIQUE,
+    clave VARCHAR(100) NOT NULL,
+    tipo ENUM('admin','cocina','pedido') NOT NULL
+);
+
+-- Insertar usuarios de ejemplo
+INSERT INTO usuarios (usuario, clave, tipo) VALUES
+('admin', 'admin123', 'admin'),
+('cocinero', 'cocina123', 'cocina'),
+('mesero', 'pedido123', 'pedido');
 
 -- Insertar datos de ejemplo en menú
 INSERT INTO menu (nombre, precio, descripcion, imagen) VALUES
