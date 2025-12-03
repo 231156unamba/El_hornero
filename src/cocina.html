@@ -4,20 +4,109 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Vista Cocina</title>
-    <link rel="stylesheet" href="../resources/css/cocina.css">
     <style>
-        body { font-family: Arial, sans-serif; background: #f8f8f8; margin: 0; }
-        .container { max-width: 1200px; margin: 40px auto; padding: 20px; background: #fff; border-radius: 8px; }
-        h1 { text-align: center; margin-bottom: 30px; }
-        .estados { display: flex; gap: 20px; justify-content: center; }
-        .estado { flex: 1; background: #f0f0f0; border-radius: 8px; padding: 15px; min-height: 300px; }
-        .estado h2 { text-align: center; }
-        .tarjeta { background: #fff; border: 1px solid #ddd; border-radius: 6px; margin: 10px 0; padding: 15px; box-shadow: 0 2px 6px rgba(0,0,0,0.05); }
-        .tarjeta .mesa { font-weight: bold; }
-        .tarjeta .detalle { margin: 8px 0; }
-        .boton { background: #28a745; color: #fff; border: none; border-radius: 4px; padding: 8px 16px; cursor: pointer; margin-top: 10px; }
-        .boton:disabled { background: #ccc; }
-        .aviso { background: #ffeeba; color: #856404; border-radius: 4px; padding: 8px; margin: 10px 0; }
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background: linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%);
+            margin: 0;
+        }
+        .container {
+            max-width: 1300px;
+            margin: 40px auto;
+            padding: 30px 20px;
+            background: #fff8e1;
+            border-radius: 18px;
+            box-shadow: 0 6px 32px rgba(255, 152, 0, 0.13);
+        }
+        h1 {
+            text-align: center;
+            margin-bottom: 35px;
+            color: #ff6f00;
+            letter-spacing: 2px;
+            font-size: 2.5em;
+        }
+        .estados {
+            display: flex;
+            gap: 30px;
+            justify-content: center;
+        }
+        .estado {
+            flex: 1;
+            background: #fffde7;
+            border-radius: 14px;
+            padding: 18px 10px 30px 10px;
+            min-height: 350px;
+            box-shadow: 0 2px 12px rgba(255, 193, 7, 0.08);
+        }
+        .estado h2 {
+            text-align: center;
+            color: #ff9800;
+            font-size: 1.5em;
+            margin-bottom: 18px;
+        }
+        .tarjeta {
+            background: linear-gradient(90deg, #ffe0b2 0%, #fffde7 100%);
+            border: 2px solid #ffb300;
+            border-radius: 12px;
+            margin: 18px 0;
+            padding: 22px 18px 18px 18px;
+            box-shadow: 0 4px 16px rgba(255, 167, 38, 0.13);
+            position: relative;
+            transition: transform 0.1s;
+        }
+        .tarjeta:hover {
+            transform: scale(1.03);
+            box-shadow: 0 8px 32px rgba(255, 152, 0, 0.18);
+        }
+        .tarjeta .mesa {
+            font-weight: bold;
+            color: #e65100;
+            font-size: 1.2em;
+            margin-bottom: 8px;
+        }
+        .tarjeta .detalle {
+            margin: 8px 0 12px 0;
+            color: #6d4c41;
+            font-size: 1.1em;
+        }
+        .tarjeta .hora {
+            position: absolute;
+            top: 12px;
+            right: 18px;
+            color: #ff9800;
+            font-size: 0.95em;
+        }
+        .boton {
+            background: linear-gradient(90deg, #ff9800 0%, #ffd54f 100%);
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            padding: 10px 22px;
+            cursor: pointer;
+            font-size: 1.1em;
+            font-weight: bold;
+            margin-top: 10px;
+            box-shadow: 0 2px 8px rgba(255, 152, 0, 0.13);
+            transition: background 0.2s;
+        }
+        .boton:disabled {
+            background: #ffe0b2;
+            color: #bdbdbd;
+        }
+        .aviso {
+            background: #fff8e1;
+            color: #ff6f00;
+            border-radius: 8px;
+            padding: 12px;
+            margin: 18px 0;
+            font-size: 1.1em;
+            text-align: center;
+            border: 2px solid #ffd54f;
+            box-shadow: 0 2px 8px rgba(255, 193, 7, 0.08);
+        }
+        @media (max-width: 900px) {
+            .estados { flex-direction: column; gap: 18px; }
+        }
     </style>
 </head>
 <body>
@@ -39,17 +128,17 @@
         </div>
         <div id="avisos"></div>
     </div>
-    <script src="../resources/js/cocina.js"></script>
     <script>
-        // Datos de ejemplo
-        let pedidos = [
-            { id: 1, mesa: 5, detalle: 'Pizza grande', estado: 'pedido' },
-            { id: 2, mesa: 2, detalle: 'Ensalada César', estado: 'preparado' },
-            { id: 3, mesa: 7, detalle: 'Lomo saltado', estado: 'pedido' },
-            { id: 4, mesa: 1, detalle: 'Sopa criolla', estado: 'entregado' }
-        ];
+        // Protección de acceso: solo cocina
+        fetch('../resources/js/login.php', { method: 'POST', credentials: 'include' })
+            .then(() => {
+                // Si no hay sesión, redirigir a login
+                fetch('../resources/js/cocina_api.php', { credentials: 'include' })
+                    .then(res => res.json())
+                    .then(pedidos => renderPedidos(pedidos));
+            });
 
-        function renderPedidos() {
+        function renderPedidos(pedidos) {
             const pedidoDiv = document.getElementById('estado-pedido');
             const preparadoDiv = document.getElementById('estado-preparado');
             const entregadoDiv = document.getElementById('estado-entregado');
@@ -59,18 +148,18 @@
             pedidos.forEach(p => {
                 const card = document.createElement('div');
                 card.className = 'tarjeta';
-                card.innerHTML = `<div class="mesa">Mesa ${p.mesa}</div><div class="detalle">${p.detalle}</div>`;
+                card.innerHTML = `<div class="mesa">Mesa ${p.mesa}</div><div class="detalle">${p.detalle}</div><div class="hora">${p.fecha ? new Date(p.fecha).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : ''}</div>`;
                 if (p.estado === 'pedido') {
                     const btn = document.createElement('button');
                     btn.className = 'boton';
-                    btn.textContent = 'Marcar como preparado';
+                    btn.textContent = 'Marcar como PREPARADO';
                     btn.onclick = () => cambiarEstado(p.id, 'preparado');
                     card.appendChild(btn);
                     pedidoDiv.appendChild(card);
                 } else if (p.estado === 'preparado') {
                     const btn = document.createElement('button');
                     btn.className = 'boton';
-                    btn.textContent = 'Marcar como entregado';
+                    btn.textContent = 'Marcar como ENTREGADO';
                     btn.onclick = () => cambiarEstado(p.id, 'entregado');
                     card.appendChild(btn);
                     preparadoDiv.appendChild(card);
@@ -81,13 +170,23 @@
         }
 
         function cambiarEstado(id, nuevoEstado) {
-            const pedido = pedidos.find(p => p.id === id);
-            if (!pedido) return;
-            pedido.estado = nuevoEstado;
-            renderPedidos();
-            if (nuevoEstado === 'preparado') {
-                mostrarAviso(`Pedido listo para la mesa ${pedido.mesa}`);
-            }
+            fetch('../resources/js/cocina_api.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: `id=${id}&estado=${nuevoEstado}`,
+                credentials: 'include'
+            })
+            .then(res => res.json())
+            .then(() => {
+                fetch('../resources/js/cocina_api.php', { credentials: 'include' })
+                    .then(res => res.json())
+                    .then(pedidos => {
+                        renderPedidos(pedidos);
+                        if (nuevoEstado === 'preparado') {
+                            mostrarAviso('Pedido listo para la mesa ' + (pedidos.find(p => p.id == id)?.mesa || ''));
+                        }
+                    });
+            });
         }
 
         function mostrarAviso(mensaje) {
@@ -96,7 +195,12 @@
             setTimeout(() => { avisosDiv.innerHTML = ''; }, 4000);
         }
 
-        renderPedidos();
+        // Refresco automático cada 10 segundos
+        setInterval(() => {
+            fetch('../resources/js/cocina_api.php', { credentials: 'include' })
+                .then(res => res.json())
+                .then(pedidos => renderPedidos(pedidos));
+        }, 10000);
     </script>
 </body>
 </html>

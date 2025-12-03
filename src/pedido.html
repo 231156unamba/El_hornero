@@ -199,52 +199,41 @@
     }
 
 
-    // Datos estáticos para la demo (pollería)
-    const MESAS_DEMO = [
-      { id: 1, numero: 1 },
-      { id: 2, numero: 2 },
-      { id: 3, numero: 3 },
-      { id: 4, numero: 4 },
-      { id: 5, numero: 5 }
-    ];
 
-    const PLATOS_DEMO = [
-      { id: 1, nombre: "Pollo a la brasa", precio: 38.00 },
-      { id: 2, nombre: "1/2 Pollo a la brasa", precio: 22.00 },
-      { id: 3, nombre: "1/4 Pollo a la brasa", precio: 14.00 },
-      { id: 4, nombre: "Papa frita", precio: 8.00 },
-      { id: 5, nombre: "Ensalada", precio: 6.00 },
-      { id: 6, nombre: "Inca Kola 1L", precio: 9.00 },
-      { id: 7, nombre: "Chicha morada", precio: 7.00 }
-    ];
-
-    function cargarMesasDemo() {
+    // Cargar mesas (simples: 1-10)
+    function cargarMesas() {
       const mesaSelect = document.getElementById("mesa");
-      MESAS_DEMO.forEach(mesa => {
+      mesaSelect.innerHTML = '<option value="">Seleccione una mesa</option>';
+      for (let i = 1; i <= 10; i++) {
         let op = document.createElement("option");
-        op.value = mesa.id;
-        op.textContent = `Mesa ${mesa.numero}`;
+        op.value = i;
+        op.textContent = `Mesa ${i}`;
         mesaSelect.appendChild(op);
-      });
+      }
     }
 
-    function cargarPlatosDemo() {
-      const platoSelect = document.getElementById("plato");
-      PLATOS_DEMO.forEach(p => {
-        let op = document.createElement("option");
-        op.value = p.id;
-        op.dataset.nombre = p.nombre;
-        op.dataset.precio = p.precio;
-        op.textContent = `${p.nombre} - S/ ${p.precio}`;
-        platoSelect.appendChild(op);
-      });
+    // Cargar platos desde la BD
+    function cargarPlatos() {
+      fetch('../resources/js/menu_api.php', { credentials: 'include' })
+        .then(res => res.json())
+        .then(menu => {
+          const platoSelect = document.getElementById("plato");
+          platoSelect.innerHTML = '';
+          menu.forEach(p => {
+            let op = document.createElement("option");
+            op.value = p.id;
+            op.dataset.nombre = p.nombre;
+            op.dataset.precio = p.precio;
+            op.textContent = `${p.nombre} - S/ ${p.precio}`;
+            platoSelect.appendChild(op);
+          });
+        });
     }
 
-    // Cargar datos al iniciar la página (demo)
     document.addEventListener("DOMContentLoaded", () => {
       mostrarUsuario();
-      cargarMesasDemo();
-      cargarPlatosDemo();
+      cargarMesas();
+      cargarPlatos();
     });
 
     function agregarTarjeta() {
@@ -289,85 +278,50 @@
       document.getElementById("total").textContent = (total + extra).toFixed(2);
     }
 
-    // Crear pedido
+
+    // Crear pedido (conexión a la BD)
     async function crearPedido() {
       const mesa = document.getElementById("mesa").value;
       const tarjetas = document.querySelectorAll(".tarjeta-pedido");
-      
       if (!mesa) {
         alert("Por favor selecciona una mesa");
         return;
       }
-
       if (tarjetas.length === 0) {
         alert("Por favor agrega al menos un plato al pedido");
         return;
       }
-
-      const usuario = obtenerDatosUsuario();
-      const token = localStorage.getItem("token");
-      const ajuste_precio = parseFloat(document.getElementById('ajuste_precio').value) || 0;
-      const observaciones = document.getElementById('ajuste_descripcion').value;
-
-      // Construir detalle del pedido
-      const detalles = [];
+      let detalle = [];
       tarjetas.forEach(tarjeta => {
-        const headerText = tarjeta.querySelector(".item-header span:first-child").textContent;
-        const cantidadText = tarjeta.querySelector(".item-line:nth-child(2)").textContent;
-        const precioText = tarjeta.querySelector(".item-line:nth-child(3)").textContent;
-
-        const cantidad = parseInt(cantidadText.split(": ")[1]);
-        const precio = parseFloat(precioText.split("S/ ")[1]);
-
-        detalles.push({
-          nombre: headerText,
-          cantidad: cantidad,
-          precio_unitario: precio,
-          subtotal: cantidad * precio
-        });
+        const nombre = tarjeta.querySelector(".item-header span:first-child").textContent;
+        const cantidad = parseInt(tarjeta.querySelector(".item-line:nth-child(2)").textContent.split(": ")[1]);
+        detalle.push(`${nombre} x${cantidad}`);
       });
-
-      try {
-        const totalConAjuste = total + ajuste_precio;
-
-        const pedidoData = {
-          id_mesa: parseInt(mesa),
-          id_mesero: usuario.id_usuario,
-          precio_total: totalConAjuste,
-          observaciones: observaciones,
-          detalles: detalles,
-          ajuste_precio: ajuste_precio
-        };
-
-        const response = await fetch(`${API_URL}/pedidos`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${token}`
-          },
-          body: JSON.stringify(pedidoData)
-        });
-
-        if (!response.ok) {
-          const error = await response.json();
-          throw new Error(error.mensaje || "Error al crear pedido");
+      const detalleTexto = detalle.join(", ");
+      const data = new URLSearchParams();
+      data.append('mesa', mesa);
+      data.append('detalle', detalleTexto);
+      fetch('../resources/js/pedido_api.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: data,
+        credentials: 'include'
+      })
+      .then(res => res.json())
+      .then(resp => {
+        if (resp.success) {
+          alert('✓ Pedido creado exitosamente');
+          document.getElementById("mesa").value = "";
+          document.getElementById("cantidad").value = "";
+          document.getElementById("ajuste_precio").value = "";
+          document.getElementById("ajuste_descripcion").value = "";
+          document.getElementById("listaPedidos").innerHTML = "";
+          total = 0;
+          actualizar();
+        } else {
+          alert('Error al crear pedido');
         }
-
-        const resultado = await response.json();
-        alert(`✓ Pedido creado exitosamente (ID: ${resultado.id_pedido})`);
-
-        // Limpiar formulario
-        document.getElementById("mesa").value = "";
-        document.getElementById("cantidad").value = "";
-        document.getElementById("ajuste_precio").value = "";
-        document.getElementById("ajuste_descripcion").value = "";
-        document.getElementById("listaPedidos").innerHTML = "";
-        total = 0;
-        actualizar();
-      } catch (error) {
-        console.error("Error al crear pedido:", error);
-        alert("Error: " + error.message);
-      }
+      });
     }
 
     document.getElementById('ajuste_precio').addEventListener('input', actualizar);
