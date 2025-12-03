@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vista Cocina</title>
+    <link rel="stylesheet" href="../resources/css/cocina.css">
+    <style>
+        body { font-family: Arial, sans-serif; background: #f8f8f8; margin: 0; }
+        .container { max-width: 1200px; margin: 40px auto; padding: 20px; background: #fff; border-radius: 8px; }
+        h1 { text-align: center; margin-bottom: 30px; }
+        .estados { display: flex; gap: 20px; justify-content: center; }
+        .estado { flex: 1; background: #f0f0f0; border-radius: 8px; padding: 15px; min-height: 300px; }
+        .estado h2 { text-align: center; }
+        .tarjeta { background: #fff; border: 1px solid #ddd; border-radius: 6px; margin: 10px 0; padding: 15px; box-shadow: 0 2px 6px rgba(0,0,0,0.05); }
+        .tarjeta .mesa { font-weight: bold; }
+        .tarjeta .detalle { margin: 8px 0; }
+        .boton { background: #28a745; color: #fff; border: none; border-radius: 4px; padding: 8px 16px; cursor: pointer; margin-top: 10px; }
+        .boton:disabled { background: #ccc; }
+        .aviso { background: #ffeeba; color: #856404; border-radius: 4px; padding: 8px; margin: 10px 0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Vista Cocina</h1>
+        <div class="estados">
+            <div class="estado" id="estado-pedido">
+                <h2>Pedidos</h2>
+                <!-- Tarjetas de pedidos en estado "pedido" -->
+            </div>
+            <div class="estado" id="estado-preparado">
+                <h2>Preparados</h2>
+                <!-- Tarjetas de pedidos en estado "preparado" -->
+            </div>
+            <div class="estado" id="estado-entregado">
+                <h2>Entregados</h2>
+                <!-- Tarjetas de pedidos en estado "entregado" -->
+            </div>
+        </div>
+        <div id="avisos"></div>
+    </div>
+    <script src="../resources/js/cocina.js"></script>
+    <script>
+        // Datos de ejemplo
+        let pedidos = [
+            { id: 1, mesa: 5, detalle: 'Pizza grande', estado: 'pedido' },
+            { id: 2, mesa: 2, detalle: 'Ensalada César', estado: 'preparado' },
+            { id: 3, mesa: 7, detalle: 'Lomo saltado', estado: 'pedido' },
+            { id: 4, mesa: 1, detalle: 'Sopa criolla', estado: 'entregado' }
+        ];
+
+        function renderPedidos() {
+            const pedidoDiv = document.getElementById('estado-pedido');
+            const preparadoDiv = document.getElementById('estado-preparado');
+            const entregadoDiv = document.getElementById('estado-entregado');
+            pedidoDiv.innerHTML = '<h2>Pedidos</h2>';
+            preparadoDiv.innerHTML = '<h2>Preparados</h2>';
+            entregadoDiv.innerHTML = '<h2>Entregados</h2>';
+            pedidos.forEach(p => {
+                const card = document.createElement('div');
+                card.className = 'tarjeta';
+                card.innerHTML = `<div class="mesa">Mesa ${p.mesa}</div><div class="detalle">${p.detalle}</div>`;
+                if (p.estado === 'pedido') {
+                    const btn = document.createElement('button');
+                    btn.className = 'boton';
+                    btn.textContent = 'Marcar como preparado';
+                    btn.onclick = () => cambiarEstado(p.id, 'preparado');
+                    card.appendChild(btn);
+                    pedidoDiv.appendChild(card);
+                } else if (p.estado === 'preparado') {
+                    const btn = document.createElement('button');
+                    btn.className = 'boton';
+                    btn.textContent = 'Marcar como entregado';
+                    btn.onclick = () => cambiarEstado(p.id, 'entregado');
+                    card.appendChild(btn);
+                    preparadoDiv.appendChild(card);
+                } else if (p.estado === 'entregado') {
+                    entregadoDiv.appendChild(card);
+                }
+            });
+        }
+
+        function cambiarEstado(id, nuevoEstado) {
+            const pedido = pedidos.find(p => p.id === id);
+            if (!pedido) return;
+            pedido.estado = nuevoEstado;
+            renderPedidos();
+            if (nuevoEstado === 'preparado') {
+                mostrarAviso(`Pedido listo para la mesa ${pedido.mesa}`);
+            }
+        }
+
+        function mostrarAviso(mensaje) {
+            const avisosDiv = document.getElementById('avisos');
+            avisosDiv.innerHTML = `<div class="aviso">${mensaje}</div>`;
+            setTimeout(() => { avisosDiv.innerHTML = ''; }, 4000);
+        }
+
+        renderPedidos();
+    </script>
+</body>
+</html>
