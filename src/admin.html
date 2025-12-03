@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel Administrador</title>
+    <link rel="stylesheet" href="../resources/css/admin.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; background: #f8f8f8; margin: 0; }
+        .container { max-width: 1200px; margin: 40px auto; padding: 20px; background: #fff; border-radius: 8px; }
+        h1 { text-align: center; margin-bottom: 30px; }
+        .menu-section, .stats-section { margin-bottom: 40px; }
+        .menu-list { display: flex; flex-wrap: wrap; gap: 20px; }
+        .menu-item { background: #fff; border: 1px solid #ddd; border-radius: 6px; width: 250px; padding: 15px; box-shadow: 0 2px 6px rgba(0,0,0,0.05); }
+        .menu-item img { width: 100%; height: 140px; object-fit: cover; border-radius: 4px; }
+        .menu-item .nombre { font-weight: bold; font-size: 1.2em; margin: 8px 0; }
+        .menu-item .precio { color: #28a745; font-weight: bold; }
+        .menu-item .descripcion { font-size: 0.95em; margin: 8px 0; }
+        .menu-item .boton { background: #007bff; color: #fff; border: none; border-radius: 4px; padding: 6px 12px; cursor: pointer; margin-top: 8px; }
+        .menu-item .boton.eliminar { background: #dc3545; }
+        .add-form { margin-bottom: 20px; }
+        .add-form input, .add-form textarea { margin: 4px 0; padding: 6px; width: 100%; border-radius: 4px; border: 1px solid #ccc; }
+        .add-form button { background: #28a745; color: #fff; border: none; border-radius: 4px; padding: 8px 16px; cursor: pointer; margin-top: 8px; }
+        .stats-section { background: #f0f0f0; border-radius: 8px; padding: 20px; }
+        .charts { display: flex; gap: 40px; flex-wrap: wrap; justify-content: center; }
+        .chart-container { background: #fff; border-radius: 8px; padding: 20px; box-shadow: 0 2px 6px rgba(0,0,0,0.05); }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Panel de Administración</h1>
+        <div class="menu-section">
+            <h2>Menú</h2>
+            <form class="add-form" id="addForm">
+                <input type="text" id="nombre" placeholder="Nombre" required>
+                <input type="number" id="precio" placeholder="Precio" required>
+                <textarea id="descripcion" placeholder="Descripción" required></textarea>
+                <input type="text" id="imagen" placeholder="URL de la imagen" required>
+                <button type="submit">Agregar plato</button>
+            </form>
+            <div class="menu-list" id="menuList">
+                <!-- Aquí se mostrarán los platos del menú -->
+            </div>
+        </div>
+        <div class="stats-section">
+            <h2>Estadísticas de Ventas</h2>
+            <div class="charts">
+                <div class="chart-container">
+                    <h3>Diarias</h3>
+                    <canvas id="chartDiaria" width="350" height="200"></canvas>
+                </div>
+                <div class="chart-container">
+                    <h3>Mensuales</h3>
+                    <canvas id="chartMensual" width="350" height="200"></canvas>
+                </div>
+                <div class="chart-container">
+                    <h3>Comparativa Anual</h3>
+                    <canvas id="chartAnual" width="350" height="200"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script src="../resources/js/admin.js"></script>
+    <script>
+        // Simulación de datos de menú (esto se debe cargar desde la BD en backend real)
+        let menu = [
+            { id: 1, nombre: 'Pizza grande', precio: 35, descripcion: 'Pizza familiar con ingredientes frescos.', imagen: 'https://images.unsplash.com/photo-1513104890138-7c749659a591' },
+            { id: 2, nombre: 'Lomo saltado', precio: 28, descripcion: 'Plato tradicional peruano.', imagen: 'https://images.unsplash.com/photo-1504674900247-0877df9cc836' },
+            { id: 3, nombre: 'Ensalada César', precio: 18, descripcion: 'Ensalada fresca con pollo y aderezo César.', imagen: 'https://images.unsplash.com/photo-1464306076886-debede6b0df1' }
+        ];
+        function renderMenu() {
+            const menuList = document.getElementById('menuList');
+            menuList.innerHTML = '';
+            menu.forEach(plato => {
+                const item = document.createElement('div');
+                item.className = 'menu-item';
+                item.innerHTML = `<img src="${plato.imagen}" alt="${plato.nombre}"><div class="nombre">${plato.nombre}</div><div class="precio">S/. ${plato.precio}</div><div class="descripcion">${plato.descripcion}</div>`;
+                const btnEdit = document.createElement('button');
+                btnEdit.className = 'boton editar';
+                btnEdit.textContent = 'Editar';
+                btnEdit.onclick = () => editarPlato(plato.id);
+                const btnDelete = document.createElement('button');
+                btnDelete.className = 'boton eliminar';
+                btnDelete.textContent = 'Eliminar';
+                btnDelete.onclick = () => eliminarPlato(plato.id);
+                item.appendChild(btnEdit);
+                item.appendChild(btnDelete);
+                menuList.appendChild(item);
+            });
+        }
+        function editarPlato(id) {
+            const plato = menu.find(p => p.id === id);
+            if (!plato) return;
+            document.getElementById('nombre').value = plato.nombre;
+            document.getElementById('precio').value = plato.precio;
+            document.getElementById('descripcion').value = plato.descripcion;
+            document.getElementById('imagen').value = plato.imagen;
+            document.getElementById('addForm').onsubmit = function(e) {
+                e.preventDefault();
+                plato.nombre = document.getElementById('nombre').value;
+                plato.precio = parseFloat(document.getElementById('precio').value);
+                plato.descripcion = document.getElementById('descripcion').value;
+                plato.imagen = document.getElementById('imagen').value;
+                renderMenu();
+                this.reset();
+                this.onsubmit = addPlato;
+            };
+        }
+        function eliminarPlato(id) {
+            menu = menu.filter(p => p.id !== id);
+            renderMenu();
+        }
+        function addPlato(e) {
+            e.preventDefault();
+            const nuevo = {
+                id: Date.now(),
+                nombre: document.getElementById('nombre').value,
+                precio: parseFloat(document.getElementById('precio').value),
+                descripcion: document.getElementById('descripcion').value,
+                imagen: document.getElementById('imagen').value
+            };
+            menu.push(nuevo);
+            renderMenu();
+            this.reset();
+        }
+        document.getElementById('addForm').onsubmit = addPlato;
+        renderMenu();
+        // Simulación de datos de ventas
+        const ventasDiarias = [12, 18, 9, 22, 15, 30, 25]; // Lunes a Domingo
+        const ventasMensuales = [320, 410, 380, 500, 450, 600, 700, 650, 480, 520, 610, 720]; // Ene-Dic
+        const ventasComparativa = [4200, 4800, 5300, 6000, 5800]; // 2021-2025
+        // Gráfica diaria
+        new Chart(document.getElementById('chartDiaria').getContext('2d'), {
+            type: 'bar',
+            data: {
+                labels: ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'],
+                datasets: [{ label: 'Ventas', data: ventasDiarias, backgroundColor: '#007bff' }]
+            },
+            options: { responsive: false }
+        });
+        // Gráfica mensual
+        new Chart(document.getElementById('chartMensual').getContext('2d'), {
+            type: 'line',
+            data: {
+                labels: ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'],
+                datasets: [{ label: 'Ventas', data: ventasMensuales, borderColor: '#28a745', fill: false }]
+            },
+            options: { responsive: false }
+        });
+        // Gráfica comparativa anual
+        new Chart(document.getElementById('chartAnual').getContext('2d'), {
+            type: 'bar',
+            data: {
+                labels: ['2021', '2022', '2023', '2024', '2025'],
+                datasets: [{ label: 'Ventas', data: ventasComparativa, backgroundColor: '#dc3545' }]
+            },
+            options: { responsive: false }
+        });
+    </script>
+</body>
+</html>
