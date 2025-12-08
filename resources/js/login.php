@@ -12,7 +12,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($row = $result->fetch_assoc()) {
         $_SESSION['usuario'] = $row['usuario'];
         $_SESSION['tipo'] = $row['tipo'];
-        echo json_encode(['success' => true, 'tipo' => $row['tipo']]);
+        // Devolver id y usuario para que el frontend pueda mostrar nombre
+        echo json_encode(['success' => true, 'tipo' => $row['tipo'], 'id' => $row['id'], 'usuario' => $row['usuario']]);
     } else {
         echo json_encode(['success' => false]);
     }
