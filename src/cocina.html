@@ -1,6 +1,12 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
+    <script>
+        // Proteger acceso solo para cocina
+        if (!localStorage.getItem("token") || localStorage.getItem("rol") !== "cocina") {
+            window.location.href = "login.html";
+        }
+    </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Vista Cocina</title>

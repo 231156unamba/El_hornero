@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Demo - El Hornero</title>
+    <title>El Hornero</title>
   <style>
     * {
       margin: 0;
@@ -157,7 +157,7 @@
 <body>
   <div class="login-container">
     <div class="logo-section">
-      <div class="logo">🍗</div>
+      <div class="logo">"href:../resources/visual/logo.png"</div>
       <div class="logo-text">El Hornero</div>
       <div class="subtitle">Sistema de Pedidos</div>
     </div>
@@ -182,15 +182,9 @@
         <div class="spinner"></div>
       </div>
     </form>
-
-    <div class="info-section">
-      <strong>Version Demo</strong>
-    </div>
   </div>
 
   <script>
-    const API_URL = "http://localhost:8080/api"; // Ajusta según tu backend
-
     const form = document.getElementById("loginForm");
     const usernameInput = document.getElementById("username");
     const passwordInput = document.getElementById("password");
@@ -204,46 +198,61 @@
     localStorage.removeItem("usuario");
     localStorage.removeItem("rol");
 
-    console.log("Login page loaded - redirects to pedido.html");
-
-    form.addEventListener("submit", async (e) => {
+    form.addEventListener("submit", function(e) {
       e.preventDefault();
-
-      const username = usernameInput.value.trim();
-      const password = passwordInput.value.trim();
-
-      if (!username || !password) {
+      errorMessage.style.display = "none";
+      successMessage.style.display = "none";
+      btnLogin.disabled = true;
+      loading.style.display = "block";
+      const usuario = usernameInput.value.trim();
+      const clave = passwordInput.value.trim();
+      if (!usuario || !clave) {
         mostrarError("Por favor ingresa usuario y contraseña");
+        btnLogin.disabled = false;
+        loading.style.display = "none";
         return;
       }
-
-      await iniciarSesion(username, password);
+      fetch('../resources/js/login.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: `usuario=${encodeURIComponent(usuario)}&clave=${encodeURIComponent(clave)}`,
+        credentials: 'include'
+      })
+      .then(res => res.json())
+      .then(data => {
+        btnLogin.disabled = false;
+        loading.style.display = "none";
+        if (data.success) {
+          localStorage.setItem("token", "session");
+          // Guardar objeto usuario con nombre e id
+          const userObj = { id: data.id || null, nombre: data.usuario || usuario };
+          localStorage.setItem("usuario", JSON.stringify(userObj));
+          localStorage.setItem("rol", data.tipo);
+          if (data.tipo === 'admin') {
+            window.location.href = 'admin.html';
+          } else if (data.tipo === 'cocina') {
+            window.location.href = 'cocina.html';
+          } else if (data.tipo === 'pedido') {
+            window.location.href = 'pedido.html';
+          } else {
+            mostrarError('Tipo de usuario no válido');
+          }
+        } else {
+          mostrarError("Usuario o contraseña incorrectos");
+        }
+      })
+      .catch(() => {
+        btnLogin.disabled = false;
+        loading.style.display = "none";
+        mostrarError("Error de conexión");
+      });
     });
-
-    async function iniciarSesion(username, password) {
-      // Demo mode - guarda datos mínimos en localStorage y redirige a pedido.html
-      try {
-        localStorage.setItem("token", "demo-token");
-        localStorage.setItem("rol", "mesero");
-        const demoUser = { id_usuario: 1, nombre: username || 'Demo', apellido: '' };
-        localStorage.setItem("usuario", JSON.stringify(demoUser));
-      } catch (err) {
-        console.warn('No se pudo guardar en localStorage', err);
-      }
-      window.location.href = "pedido.html";
-    }
-
-    function redirigirPorRol(rol) {
-      // Siempre redirige a pedido.html
-      window.location.href = "pedido.html";
-    }
 
     function mostrarError(mensaje) {
       errorMessage.textContent = mensaje;
       errorMessage.style.display = "block";
       successMessage.style.display = "none";
     }
-
     function mostrarExito(mensaje) {
       successMessage.textContent = mensaje;
       successMessage.style.display = "block";

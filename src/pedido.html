@@ -6,7 +6,7 @@
   <title>Panel de Pedido - El Hornero</title>
   <script>
     // Verificar sesión al cargar
-    if (!localStorage.getItem("token") || localStorage.getItem("rol") !== "mesero") {
+    if (!localStorage.getItem("token") || localStorage.getItem("rol") !== "pedido") {
       window.location.href = "login.html";
     }
   </script>
@@ -148,6 +148,7 @@
       <div>
         <select id="plato">
         </select>
+        <div id="menuStatus" style="margin-top:6px;color:#bf360c;font-size:14px"></div>
       </div>
       <div>
         <input type="number" id="cantidad" min="1" placeholder="Cant." />
@@ -164,14 +165,23 @@
     <h3>Detalle del Pedido</h3>
     <div id="listaPedidos"></div>
 
+    <h3 style="margin-top:28px;">Pedidos guardados</h3>
+    <div id="pedidosList"></div>
+
     <div class="total-box">Total: S/ <span id="total">0.00</span></div>
 
-    <button class="btn" onclick="crearPedido()" style="width:100%; margin-top:20px; font-size:18px;">Crear Pedido</button>
+    <button class="btn" id="btnCrearPedido" onclick="crearPedido()" style="width:100%; margin-top:20px; font-size:18px;" disabled>Crear Pedido</button>
   </div>
 
   <script>
     let total = 0;
     const API_URL = "http://localhost:8080/api"; // Ajusta la URL según tu backend
+
+    function actualizarBotonCrearPedido() {
+      const tarjetas = document.querySelectorAll('.tarjeta-pedido');
+      const btn = document.getElementById('btnCrearPedido');
+      btn.disabled = tarjetas.length === 0;
+    }
 
     // Obtener datos del usuario
     function obtenerDatosUsuario() {
@@ -184,7 +194,7 @@
       const usuario = obtenerDatosUsuario();
       const nombreUsuario = document.getElementById("nombreUsuario");
       if (usuario && usuario.nombre) {
-        nombreUsuario.textContent = `👤 ${usuario.nombre} ${usuario.apellido}`;
+        nombreUsuario.textContent = `👤 ${usuario.nombre}`;
       }
     }
 
@@ -200,11 +210,11 @@
 
 
 
-    // Cargar mesas (simples: 1-10)
+    // Cargar mesas (estático 1-9)
     function cargarMesas() {
       const mesaSelect = document.getElementById("mesa");
       mesaSelect.innerHTML = '<option value="">Seleccione una mesa</option>';
-      for (let i = 1; i <= 10; i++) {
+      for (let i = 1; i <= 9; i++) {
         let op = document.createElement("option");
         op.value = i;
         op.textContent = `Mesa ${i}`;
@@ -212,13 +222,24 @@
       }
     }
 
-    // Cargar platos desde la BD
+    // Cargar platos desde la BD y mostrar mensaje si no hay
     function cargarPlatos() {
-      fetch('../resources/js/menu_api.php', { credentials: 'include' })
+      const statusEl = document.getElementById('menuStatus');
+      statusEl.textContent = 'Cargando menú...';
+      fetch('/resources/js/menu_api.php')
         .then(res => res.json())
         .then(menu => {
+          console.log('menu_api response:', menu);
           const platoSelect = document.getElementById("plato");
           platoSelect.innerHTML = '';
+          if (!menu || menu.length === 0) {
+            let op = document.createElement("option");
+            op.value = '';
+            op.textContent = 'No hay platos disponibles';
+            platoSelect.appendChild(op);
+            statusEl.textContent = 'No hay platos disponibles';
+            return;
+          }
           menu.forEach(p => {
             let op = document.createElement("option");
             op.value = p.id;
@@ -227,6 +248,17 @@
             op.textContent = `${p.nombre} - S/ ${p.precio}`;
             platoSelect.appendChild(op);
           });
+          statusEl.textContent = '';
+        })
+        .catch(err => {
+          console.error('Error fetching menu_api:', err);
+          const platoSelect = document.getElementById("plato");
+          platoSelect.innerHTML = '';
+          let op = document.createElement("option");
+          op.value = '';
+          op.textContent = 'Error al cargar menú';
+          platoSelect.appendChild(op);
+          document.getElementById('menuStatus').textContent = 'Error al cargar menú. Revisa consola.';
         });
     }
 
@@ -234,43 +266,60 @@
       mostrarUsuario();
       cargarMesas();
       cargarPlatos();
+      fetchPedidos();
+      actualizarBotonCrearPedido();
     });
 
     function agregarTarjeta() {
       const platoSelect = document.getElementById("plato");
       const selectedOption = platoSelect.options[platoSelect.selectedIndex];
       
-      const nombre = selectedOption.dataset.nombre;
-      const precio = parseFloat(selectedOption.dataset.precio);
+      // Intentar obtener datos de atributos, sino del texto
+      let nombre = selectedOption.dataset.nombre;
+      let precio = parseFloat(selectedOption.dataset.precio);
+      
+      // Si no hay atributos, extraer del texto "Nombre - S/ Precio"
+      if (!nombre || isNaN(precio)) {
+        const texto = selectedOption.textContent.trim();
+        const partes = texto.split(' - S/ ');
+        if (partes.length === 2) {
+          nombre = partes[0];
+          precio = parseFloat(partes[1]);
+        }
+      }
+      
       const cantidad = parseInt(document.getElementById('cantidad').value);
-
-      if (!cantidad || cantidad <= 0 || !nombre) return;
-
+      if (!cantidad || cantidad <= 0 || !nombre || isNaN(precio)) {
+        alert('Por favor selecciona un plato válido y cantidad');
+        return;
+      }
+      
+      const nombreCompleto = `${nombre} - S/ ${precio.toFixed(2)}`;
       const subtotal = precio * cantidad;
       total += subtotal;
-
       const cont = document.getElementById("listaPedidos");
       const card = document.createElement("div");
       card.className = "tarjeta-pedido";
-
       card.innerHTML = `
         <div class="item-header">
-          <span>${nombre}</span>
+          <span>${nombreCompleto}</span>
           <span>S/ ${subtotal.toFixed(2)}</span>
         </div>
         <div class="item-line">Cantidad: ${cantidad}</div>
-        <div class="item-line">Precio unitario: S/ ${precio}</div>
+        <div class="item-line">Precio unitario: S/ ${precio.toFixed(2)}</div>
         <button class="btn btn-small" onclick="eliminar(this, ${subtotal})">Eliminar</button>
       `;
-
       cont.appendChild(card);
+      document.getElementById('cantidad').value = '';
       actualizar();
+      actualizarBotonCrearPedido();
     }
 
     function eliminar(boton, monto) {
       boton.parentElement.remove();
       total -= monto;
       actualizar();
+      actualizarBotonCrearPedido();
     }
 
     function actualizar() {
@@ -282,7 +331,9 @@
     // Crear pedido (conexión a la BD)
     async function crearPedido() {
       const mesa = document.getElementById("mesa").value;
-      const tarjetas = document.querySelectorAll(".tarjeta-pedido");
+      const listaPedidosDiv = document.getElementById("listaPedidos");
+      const tarjetas = listaPedidosDiv.querySelectorAll(".tarjeta-pedido");
+      
       if (!mesa) {
         alert("Por favor selecciona una mesa");
         return;
@@ -291,24 +342,29 @@
         alert("Por favor agrega al menos un plato al pedido");
         return;
       }
+      
       let detalle = [];
       tarjetas.forEach(tarjeta => {
         const nombre = tarjeta.querySelector(".item-header span:first-child").textContent;
-        const cantidad = parseInt(tarjeta.querySelector(".item-line:nth-child(2)").textContent.split(": ")[1]);
+        const cantidadTexto = tarjeta.querySelector(".item-line:nth-child(2)").textContent;
+        const cantidad = parseInt(cantidadTexto.match(/\d+/)[0]);
         detalle.push(`${nombre} x${cantidad}`);
       });
+      
       const detalleTexto = detalle.join(", ");
       const data = new URLSearchParams();
       data.append('mesa', mesa);
       data.append('detalle', detalleTexto);
-      fetch('../resources/js/pedido_api.php', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: data,
-        credentials: 'include'
-      })
-      .then(res => res.json())
-      .then(resp => {
+      
+      try {
+        const res = await fetch('/resources/js/pedido_api.php', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: data,
+          credentials: 'include'
+        });
+        const resp = await res.json();
+        
         if (resp.success) {
           alert('✓ Pedido creado exitosamente');
           document.getElementById("mesa").value = "";
@@ -318,10 +374,49 @@
           document.getElementById("listaPedidos").innerHTML = "";
           total = 0;
           actualizar();
+          actualizarBotonCrearPedido();
+          fetchPedidos();
         } else {
-          alert('Error al crear pedido');
+          alert('Error al crear pedido: ' + (resp.message || 'Desconocido'));
+          console.error('Error response:', resp);
         }
-      });
+      } catch (err) {
+        alert('Error de conexión: ' + err.message);
+        console.error('Fetch error:', err);
+      }
+    }
+
+    // Obtener y mostrar pedidos guardados desde la BD
+    function fetchPedidos() {
+      fetch('/resources/js/pedido_api.php')
+        .then(res => res.json())
+        .then(pedidos => {
+          console.log('pedido_api response:', pedidos);
+          const cont = document.getElementById('pedidosList');
+          cont.innerHTML = '';
+          if (!pedidos || pedidos.length === 0) {
+            cont.innerHTML = '<div style="color:#bf360c;padding:12px;background:#fff3e0;border-radius:8px">No hay pedidos guardados</div>';
+            return;
+          }
+          pedidos.forEach(p => {
+            const el = document.createElement('div');
+            el.className = 'tarjeta-pedido';
+            el.innerHTML = `
+              <div style="display:flex;justify-content:space-between;align-items:center">
+                <div><strong>Mesa ${p.mesa}</strong></div>
+                <div style="color:#d84315">${p.estado}</div>
+              </div>
+              <div style="margin-top:8px;color:#5d4037">${p.detalle}</div>
+              <div style="margin-top:6px;font-size:0.9em;color:#8d6e63">${p.fecha}</div>
+            `;
+            cont.appendChild(el);
+          });
+        })
+        .catch(err => {
+          console.error('Error fetching pedidos:', err);
+          const cont = document.getElementById('pedidosList');
+          cont.innerHTML = '<div style="color:#bf360c;padding:12px;background:#fff3e0;border-radius:8px">Error al cargar pedidos</div>';
+        });
     }
 
     document.getElementById('ajuste_precio').addEventListener('input', actualizar);
