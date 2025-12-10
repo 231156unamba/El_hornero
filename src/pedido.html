@@ -226,7 +226,7 @@
     function cargarPlatos() {
       const statusEl = document.getElementById('menuStatus');
       statusEl.textContent = 'Cargando menú...';
-      fetch('/resources/js/menu_api.php')
+      fetch('/resources/php/menu_api.php')
         .then(res => res.json())
         .then(menu => {
           console.log('menu_api response:', menu);
@@ -357,7 +357,7 @@
       data.append('detalle', detalleTexto);
       
       try {
-        const res = await fetch('/resources/js/pedido_api.php', {
+        const res = await fetch('/resources/php/pedido_api.php', {
           method: 'POST',
           headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
           body: data,
@@ -388,7 +388,7 @@
 
     // Obtener y mostrar pedidos guardados desde la BD
     function fetchPedidos() {
-      fetch('/resources/js/pedido_api.php')
+      fetch('/resources/php/pedido_api.php')
         .then(res => res.json())
         .then(pedidos => {
           console.log('pedido_api response:', pedidos);

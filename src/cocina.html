@@ -9,7 +9,7 @@
     </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Vista Cocina</title>
+    <title>Cocina</title>
     <style>
         body {
             font-family: 'Segoe UI', Arial, sans-serif;
@@ -136,10 +136,10 @@
     </div>
     <script>
         // Protección de acceso: solo cocina
-        fetch('../resources/js/login.php', { method: 'POST', credentials: 'include' })
+        fetch('../resources/php/login.php', { method: 'POST', credentials: 'include' })
             .then(() => {
                 // Si no hay sesión, redirigir a login
-                fetch('../resources/js/cocina_api.php', { credentials: 'include' })
+                fetch('../resources/php/cocina_api.php', { credentials: 'include' })
                     .then(res => res.json())
                     .then(pedidos => renderPedidos(pedidos));
             });
@@ -176,7 +176,7 @@
         }
 
         function cambiarEstado(id, nuevoEstado) {
-            fetch('../resources/js/cocina_api.php', {
+            fetch('../resources/php/cocina_api.php', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
                 body: `id=${id}&estado=${nuevoEstado}`,
@@ -184,7 +184,7 @@
             })
             .then(res => res.json())
             .then(() => {
-                fetch('../resources/js/cocina_api.php', { credentials: 'include' })
+                fetch('../resources/php/cocina_api.php', { credentials: 'include' })
                     .then(res => res.json())
                     .then(pedidos => {
                         renderPedidos(pedidos);
@@ -203,7 +203,7 @@
 
         // Refresco automático cada 10 segundos
         setInterval(() => {
-            fetch('../resources/js/cocina_api.php', { credentials: 'include' })
+            fetch('../resources/php/cocina_api.php', { credentials: 'include' })
                 .then(res => res.json())
                 .then(pedidos => renderPedidos(pedidos));
         }, 10000);
