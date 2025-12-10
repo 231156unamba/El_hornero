@@ -24,24 +24,33 @@
             <!-- Aquí se mostrarán los platos del menú -->
         </div>
     </div>
+
     <script>
-        // Simulación de datos de menú (esto se debe cargar desde la BD en backend real)
-        let menu = [
-            { id: 1, nombre: 'Pizza grande', precio: 35, descripcion: 'Pizza familiar con ingredientes frescos.', imagen: 'https://images.unsplash.com/photo-1513104890138-7c749659a591' },
-            { id: 2, nombre: 'Lomo saltado', precio: 28, descripcion: 'Plato tradicional peruano.', imagen: 'https://images.unsplash.com/photo-1504674900247-0877df9cc836' },
-            { id: 3, nombre: 'Ensalada César', precio: 18, descripcion: 'Ensalada fresca con pollo y aderezo César.', imagen: 'https://images.unsplash.com/photo-1464306076886-debede6b0df1' }
-        ];
-        function renderMenu() {
+        // Cargar menú desde la base de datos mediante PHP
+        async function cargarMenu() {
+            const response = await fetch("../resources/php/menu_api.php");
+            const menu = await response.json();
+            renderMenu(menu);
+        }
+
+        function renderMenu(menu) {
             const menuList = document.getElementById('menuList');
             menuList.innerHTML = '';
+
             menu.forEach(plato => {
                 const item = document.createElement('div');
                 item.className = 'menu-item';
-                item.innerHTML = `<img src="${plato.imagen}" alt="${plato.nombre}"><div class="nombre">${plato.nombre}</div><div class="precio">S/. ${plato.precio}</div><div class="descripcion">${plato.descripcion}</div>`;
+                item.innerHTML = `
+                    <img src="${plato.imagen}" alt="${plato.nombre}">
+                    <div class="nombre">${plato.nombre}</div>
+                    <div class="precio">S/. ${plato.precio}</div>
+                    <div class="descripcion">${plato.descripcion}</div>
+                `;
                 menuList.appendChild(item);
             });
         }
-        renderMenu();
+
+        cargarMenu();
     </script>
 </body>
 </html>

@@ -87,7 +87,7 @@ if (!$result) {
         }
         echo "</table>";
     } else {
-        echo "<p style='color:blue'>ℹ️ No hay pedidos aún.</p>";
+        echo "<p style='color:blue'> No hay pedidos aún.</p>";
     }
 }
 

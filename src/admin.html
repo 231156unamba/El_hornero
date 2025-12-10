@@ -2,7 +2,6 @@
 <html lang="es">
 <head>
     <script>
-        // Proteger acceso solo para admin
         if (!localStorage.getItem("token") || localStorage.getItem("rol") !== "admin") {
             window.location.href = "login.html";
         }
@@ -67,7 +66,7 @@
             </div>
         </div>
     </div>
-    <script src="../resources/js/admin.js"></script>
+    <script src="../resources/php/admin.js"></script>
     <script>
         // Simulación de datos de menú (esto se debe cargar desde la BD en backend real)
         let menu = [
