@@ -60,3 +60,44 @@ INSERT INTO venta (fecha, monto) VALUES
 ('2025-06-01', 520.00),
 ('2025-05-01', 610.00),
 ('2025-04-01', 720.00);
+
+CREATE TABLE caja (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    fecha_apertura DATETIME NOT NULL,
+    fecha_cierre DATETIME,
+    monto_inicial DECIMAL(8,2) NOT NULL,
+    monto_final DECIMAL(8,2),
+    estado ENUM('ABIERTA','CERRADA') DEFAULT 'ABIERTA'
+);
+
+CREATE TABLE venta_detalle (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    venta_id INT NOT NULL,
+    menu_id INT NOT NULL,
+    cantidad INT NOT NULL,
+    precio_unitario DECIMAL(8,2) NOT NULL,
+    subtotal DECIMAL(8,2) NOT NULL,
+    FOREIGN KEY (venta_id) REFERENCES venta(id),
+    FOREIGN KEY (menu_id) REFERENCES menu(id)
+);
+
+CREATE TABLE recibo (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    venta_id INT NOT NULL,
+    numero VARCHAR(20) NOT NULL,
+    subtotal DECIMAL(8,2) NOT NULL,
+    igv DECIMAL(8,2) NOT NULL,
+    total DECIMAL(8,2) NOT NULL,
+    tipo ENUM('BOLETA','FACTURA') DEFAULT 'BOLETA',
+    estado_sunat ENUM('PENDIENTE','ENVIADO','RECHAZADO') DEFAULT 'PENDIENTE',
+    fecha DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (venta_id) REFERENCES venta(id)
+);
+
+CREATE TABLE sunat_log (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    recibo_id INT NOT NULL,
+    respuesta VARCHAR(50),
+    fecha DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (recibo_id) REFERENCES recibo(id)
+);
