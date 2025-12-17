@@ -1,296 +1,249 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>El Hornero</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Acceso | El Hornero</title>
 
-  <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: Arial, sans-serif;
+        }
 
-    body {
-      font-family: Arial, sans-serif;
-      background: linear-gradient(135deg, #ff5500, #ffc21c, #ffff00);
-      background-size: 300% 300%;
-      animation: bgMove 10s ease infinite;
-      min-height: 100vh;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      padding: 20px;
-    }
+        /* FONDO */
+        body {
+            min-height: 100vh;
+            background: url("https://inverzm.com/wp-content/uploads/2024/08/iStock-1470700554.jpg") center/cover no-repeat;
+        }
 
-    @keyframes bgMove {
-      0% { background-position: 0% 50%; }
-      50% { background-position: 100% 50%; }
-      100% { background-position: 0% 50%; }
-    }
+        /* CAPA OSCURA */
+        .overlay {
+            min-height: 100vh;
+            background: rgba(0, 0, 0, 0.4);
+            display: flex;
+            flex-direction: column;
+        }
 
-    .login-container {
-      background: rgb(255, 255, 255);
-      backdrop-filter: blur(5px);
-      padding: 40px;
-      border-radius: 20px;
-      width: 100%;
-      max-width: 420px;
-      position: relative;
-      border: 2px solid rgba(255,111,0,0.4);
-      box-shadow:
-        0 12px 30px rgba(0,0,0,0.35),
-        0 0 20px rgba(255,140,0,0.5);
-      transition: 0.3s ease;
-    }
+        /* HEADER CORREGIDO: Más delgado */
+        .header {
+            background: #f3e1b8;
+            padding: 0 25px; /* Eliminamos padding vertical para controlar altura con height */
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            height: 75px; /* Altura delgada para la franja */
+        }
 
-    .login-container:hover {
-      transform: translateY(-4px);
-    }
+        /* LOGO CORREGIDO: Más grande y sobresale un poco */
+        .logo-img {
+            height: 100px; /* Tamaño grande aumentado */
+            width: auto;
+            position: relative;
+            top: 5px; /* Ajuste para que se vea bien centrado */
+            filter: drop-shadow(2px 2px 5px rgba(0,0,0,0.2));
+        }
 
-    .login-container::before {
-      content: "";
-      position: absolute;
-      inset: -3px;
-      border-radius: 22px;
-      background: linear-gradient(135deg, #fbfbfb, #ffffff, #ffecdb);
-      z-index: -1;
-    }
+        .slogan {
+            font-family: 'Georgia', serif;
+            font-size: 15px;
+            font-weight: bold;
+            color: #4b3d02; /* Azul elegante de la frase */
+            font-style: italic;
+        }
 
-    .logo-section {
-      text-align: center;
-      margin-bottom: 25px;
-    }
+        /* CONTENEDOR CENTRAL */
+        .main {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
 
-    .logo {
-      width: 120px;
-      margin-bottom: 10px;
-    }
+        /* LOGIN BOX */
+        .login-box {
+            width: 360px; /* Un poco más ancha para mejor balance */
+            background: rgba(255, 255, 255, 0.88);
+            padding: 35px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+        }
 
-    /* TEXTO EL HORNER0 BLANCO + BORDE NEGRO */
-    .logo-text {
-      font-size: 32px;
-      font-weight: bold;
-      color: white;
-      text-shadow: 
-        -2px -2px 0 #000,
-         2px -2px 0 #000,
-        -2px  2px 0 #000,
-         2px  2px 0 #000;
-    }
+        .login-box h3 {
+            text-align: center;
+            font-size: 20px;
+            font-weight: bold;
+            margin-bottom: 25px;
+            color: #333;
+        }
 
-    .subtitle {
-      font-size: 15px;
-      color: #333;
-      margin-top: 4px;
-      font-weight: bold;
-    }
+        .field {
+            margin-bottom: 18px;
+        }
 
-    .form-group {
-      margin-bottom: 20px;
-      position: relative;
-    }
+        .field label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+            font-weight: bold;
+            color: #000;
+            margin-bottom: 8px;
+        }
 
-    input {
-      width: 100%;
-      padding: 14px 18px 14px 45px;
-      border: 2px solid #fff5ed;
-      border-radius: 10px;
-      font-size: 16px;
-      transition: 0.3s;
-      background: white;
-    }
+        .field label img {
+            width: 16px;
+            height: 16px;
+        }
 
-    input:focus {
-      border-color: #f9f7f5;
-      box-shadow: 0 0 10px rgba(255,125,0,0.4);
-      outline: none;
-    }
+        .field input {
+            width: 100%;
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid #777;
+            font-size: 14px;
+        }
 
-    .form-group::before {
-      content: "";
-      position: absolute;
-      top: 50%;
-      left: 12px;
-      transform: translateY(-50%);
-      width: 22px;
-      height: 22px;
-      background-size: cover;
-      opacity: 0.7;
-    }
+        /* BOTON */
+        .btn-login {
+            margin-top: 10px;
+            width: 100%;
+            padding: 14px;
+            background: #ff6f2c;
+            color: #fff;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: 0.3s;
+        }
 
-    .form-group:nth-child(1)::before {
-      background-image: url('https://cdn-icons-png.flaticon.com/512/1077/1077114.png');
-    }
+        .btn-login:hover {
+            background: #e55f22;
+            transform: scale(1.02);
+        }
 
-    .form-group:nth-child(2)::before {
-      background-image: url('https://cdn-icons-png.flaticon.com/512/3064/3064155.png');
-    }
+        .btn-login:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
 
-    .btn-login {
-      width: 100%;
-      padding: 14px;
-      background: linear-gradient(135deg, #ff6f00, #ff8a2d);
-      color: white;
-      border: none;
-      border-radius: 10px;
-      font-size: 17px;
-      font-weight: bold;
-      cursor: pointer;
-      transition: 0.4s;
-      box-shadow: 0 6px 14px rgba(255,111,0,0.5);
-    }
-
-    .btn-login:hover {
-      background: linear-gradient(135deg, #f9f8f7, #ffb46b);
-      box-shadow: 0 8px 18px rgba(255,140,0,0.7);
-    }
-
-    .btn-login:disabled {
-      background: #ccc;
-      cursor: not-allowed;
-      box-shadow: none;
-    }
-
-    .error-message, .success-message {
-      padding: 12px;
-      border-radius: 10px;
-      margin-bottom: 15px;
-      font-size: 14px;
-      display: none;
-      text-align: center;
-      font-weight: bold;
-    }
-
-    .error-message {
-      background: #ffebee;
-      color: #c62828;
-      border-left: 4px solid #e53935;
-    }
-
-    .success-message {
-      background: #e8f5e9;
-      color: #2e7d32;
-      border-left: 4px solid #43a047;
-    }
-
-    .loading {
-      display: none;
-      text-align: center;
-      margin-top: 15px;
-    }
-
-    .spinner {
-      border: 4px solid #f3f3f3;
-      border-top: 4px solid #ff6f00;
-      border-radius: 50%;
-      width: 26px;
-      height: 26px;
-      animation: spin 1s linear infinite;
-      margin: 0 auto;
-    }
-
-    @keyframes spin {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
-    }
-  </style>
+        /* MENSAJES */
+        .error-message {
+            background: #ffebee;
+            color: #c62828;
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 15px;
+            font-size: 13px;
+            display: none;
+            text-align: center;
+            font-weight: bold;
+            border: 1px solid #c62828;
+        }
+    </style>
 </head>
 
 <body>
 
-  <div class="login-container">
-    <div class="logo-section">
-      <img src="../resources/visual/logo.png" class="logo" alt="Logo">
-      <div class="logo-text">El Hornero</div>
-      <div class="subtitle">Polleria</div>
+<div class="overlay">
+
+    <div class="header">
+        <img src="../resources/visual/logo.png" alt="Polleria El Hornero" class="logo-img">
+        <span class="slogan">"Donde el buen sabor comienza"</span>
     </div>
 
-    <div class="error-message" id="errorMessage"></div>
-    <div class="success-message" id="successMessage"></div>
+    <div class="main">
+        <div class="login-box">
+            <h3>Acceso</h3>
 
-    <form id="loginForm">
-      <div class="form-group">
-        <input type="text" id="username" placeholder="Usuario" required />
-      </div>
+            <div class="error-message" id="errorMessage"></div>
 
-      <div class="form-group">
-        <input type="password" id="password" placeholder="Contraseña" required />
-      </div>
+            <form id="loginForm">
+                <div class="field">
+                    <label>
+                        <img src="https://cdn-icons-png.flaticon.com/512/1077/1077114.png">
+                        Usuario
+                    </label>
+                    <input type="text" id="username" placeholder="Tu usuario" required>
+                </div>
 
-      <button type="submit" class="btn-login" id="btnLogin">Iniciar Sesión</button>
+                <div class="field">
+                    <label>
+                        <img src="https://cdn-icons-png.flaticon.com/512/3064/3064155.png">
+                        Contraseña:
+                    </label>
+                    <input type="password" id="password" placeholder="••••••••" required>
+                </div>
 
-      <div class="loading" id="loading">
-        <div class="spinner"></div>
-      </div>
-    </form>
-  </div>
+                <button type="submit" class="btn-login" id="btnLogin">Iniciar sesión</button>
+            </form>
+        </div>
+    </div>
 
-  <script>
+</div>
+
+<script>
     const form = document.getElementById("loginForm");
     const usernameInput = document.getElementById("username");
     const passwordInput = document.getElementById("password");
     const btnLogin = document.getElementById("btnLogin");
     const errorMessage = document.getElementById("errorMessage");
-    const loading = document.getElementById("loading");
 
+    // Limpiar sesión previa al entrar
     localStorage.removeItem("token");
     localStorage.removeItem("usuario");
     localStorage.removeItem("rol");
 
     form.addEventListener("submit", function(e) {
-      e.preventDefault();
+        e.preventDefault();
 
-      errorMessage.style.display = "none";
-      btnLogin.disabled = true;
-      loading.style.display = "block";
+        errorMessage.style.display = "none";
+        btnLogin.disabled = true;
+        btnLogin.textContent = "Cargando...";
 
-      const usuario = usernameInput.value.trim();
-      const clave = passwordInput.value.trim();
+        const usuario = usernameInput.value.trim();
+        const clave = passwordInput.value.trim();
 
-      if (!usuario || !clave) {
-        mostrarError("Por favor ingresa usuario y contraseña");
-        btnLogin.disabled = false;
-        loading.style.display = "none";
-        return;
-      }
+        fetch('../resources/php/login.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: `usuario=${encodeURIComponent(usuario)}&clave=${encodeURIComponent(clave)}`
+        })
+        .then(res => res.json())
+        .then(data => {
+            btnLogin.disabled = false;
+            btnLogin.textContent = "Iniciar sesión";
 
-      fetch('../resources/php/login.php', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: `usuario=${encodeURIComponent(usuario)}&clave=${encodeURIComponent(clave)}`
-      })
-      .then(res => res.json())
-      .then(data => {
-        btnLogin.disabled = false;
-        loading.style.display = "none";
+            if (data.success) {
+                localStorage.setItem("token", "session");
+                localStorage.setItem("usuario", JSON.stringify({ id: data.id, nombre: data.usuario }));
+                localStorage.setItem("rol", data.tipo);
 
-        if (data.success) {
-          localStorage.setItem("token", "session");
-          localStorage.setItem("usuario", JSON.stringify({ id: data.id, nombre: data.usuario }));
-          localStorage.setItem("rol", data.tipo);
-
-          if (data.tipo === 'admin') window.location.href = 'admin.html';
-          else if (data.tipo === 'cocina') window.location.href = 'cocina.html';
-          else if (data.tipo === 'pedido') window.location.href = 'pedido.html';
-          else mostrarError('Tipo de usuario no válido');
-        } else {
-          mostrarError("Usuario o contraseña incorrectos");
-        }
-      })
-      .catch(() => {
-        btnLogin.disabled = false;
-        loading.style.display = "none";
-        mostrarError("Error de conexión");
-      });
+                if (data.tipo === 'admin') window.location.href = 'admin.html';
+                else if (data.tipo === 'cocina') window.location.href = 'cocina.html';
+                else if (data.tipo === 'pedido') window.location.href = 'pedido.html';
+                else mostrarError('Rol de usuario no reconocido');
+            } else {
+                mostrarError("Usuario o contraseña incorrectos");
+            }
+        })
+        .catch(() => {
+            btnLogin.disabled = false;
+            btnLogin.textContent = "Iniciar sesión";
+            mostrarError("Error de conexión con el servidor");
+        });
     });
 
     function mostrarError(mensaje) {
-      errorMessage.textContent = mensaje;
-      errorMessage.style.display = "block";
+        errorMessage.textContent = mensaje;
+        errorMessage.style.display = "block";
     }
-  </script>
+</script>
 
 </body>
 </html>
