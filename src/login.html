@@ -27,25 +27,31 @@
             flex-direction: column;
         }
 
-        /* HEADER */
+        /* HEADER CORREGIDO: Más delgado */
         .header {
             background: #f3e1b8;
-            padding: 12px 25px;
+            padding: 0 25px; /* Eliminamos padding vertical para controlar altura con height */
             display: flex;
             align-items: center;
-            gap: 20px;
+            gap: 10px;
             box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            height: 75px; /* Altura delgada para la franja */
         }
 
+        /* LOGO CORREGIDO: Más grande y sobresale un poco */
         .logo-img {
-            height: 75px; /* Tamaño del logo ajustado */
+            height: 100px; /* Tamaño grande aumentado */
+            width: auto;
+            position: relative;
+            top: 5px; /* Ajuste para que se vea bien centrado */
+            filter: drop-shadow(2px 2px 5px rgba(0,0,0,0.2));
         }
 
         .slogan {
             font-family: 'Georgia', serif;
-            font-size: 22px;
+            font-size: 15px;
             font-weight: bold;
-            color: #004d71; /* Azul elegante de la frase */
+            color: #4b3d02; /* Azul elegante de la frase */
             font-style: italic;
         }
 
@@ -59,33 +65,33 @@
 
         /* LOGIN BOX */
         .login-box {
-            width: 340px;
-            background: rgba(255, 255, 255, 0.85);
-            padding: 30px;
+            width: 360px; /* Un poco más ancha para mejor balance */
+            background: rgba(255, 255, 255, 0.88);
+            padding: 35px;
             border-radius: 15px;
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
         }
 
         .login-box h3 {
             text-align: center;
-            font-size: 18px;
+            font-size: 20px;
             font-weight: bold;
-            margin-bottom: 20px;
+            margin-bottom: 25px;
             color: #333;
         }
 
         .field {
-            margin-bottom: 15px;
+            margin-bottom: 18px;
         }
 
         .field label {
             display: flex;
             align-items: center;
             gap: 8px;
-            font-size: 13px;
+            font-size: 14px;
             font-weight: bold;
             color: #000;
-            margin-bottom: 6px;
+            margin-bottom: 8px;
         }
 
         .field label img {
@@ -95,7 +101,7 @@
 
         .field input {
             width: 100%;
-            padding: 10px;
+            padding: 12px;
             border-radius: 8px;
             border: 1px solid #777;
             font-size: 14px;
@@ -105,12 +111,12 @@
         .btn-login {
             margin-top: 10px;
             width: 100%;
-            padding: 12px;
+            padding: 14px;
             background: #ff6f2c;
             color: #fff;
             border: none;
-            border-radius: 8px;
-            font-size: 15px;
+            border-radius: 10px;
+            font-size: 16px;
             font-weight: bold;
             cursor: pointer;
             transition: 0.3s;
@@ -118,6 +124,7 @@
 
         .btn-login:hover {
             background: #e55f22;
+            transform: scale(1.02);
         }
 
         .btn-login:disabled {
@@ -147,7 +154,7 @@
 
     <div class="header">
         <img src="../resources/visual/logo.png" alt="Polleria El Hornero" class="logo-img">
-        <span class="slogan">Donde el buen sabor comienza</span>
+        <span class="slogan">"Donde el buen sabor comienza"</span>
     </div>
 
     <div class="main">
@@ -195,7 +202,6 @@
     form.addEventListener("submit", function(e) {
         e.preventDefault();
 
-        // Limpiar errores y deshabilitar botón
         errorMessage.style.display = "none";
         btnLogin.disabled = true;
         btnLogin.textContent = "Cargando...";
@@ -203,7 +209,6 @@
         const usuario = usernameInput.value.trim();
         const clave = passwordInput.value.trim();
 
-        // Petición al servidor
         fetch('../resources/php/login.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -215,12 +220,10 @@
             btnLogin.textContent = "Iniciar sesión";
 
             if (data.success) {
-                // Guardar datos en el navegador
                 localStorage.setItem("token", "session");
                 localStorage.setItem("usuario", JSON.stringify({ id: data.id, nombre: data.usuario }));
                 localStorage.setItem("rol", data.tipo);
 
-                // Redirección por roles
                 if (data.tipo === 'admin') window.location.href = 'admin.html';
                 else if (data.tipo === 'cocina') window.location.href = 'cocina.html';
                 else if (data.tipo === 'pedido') window.location.href = 'pedido.html';
