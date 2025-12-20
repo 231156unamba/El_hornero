@@ -55,8 +55,8 @@
         /* Sidebar */
         .sidebar {
             width: 260px;
-            background: var(--accent-color); /* fondo completo de la barra lateral */
-            color: white;
+            background: #ff6d2f; /* updated to requested color */
+            color: #ffffff; /* ensure text is white */
             height: 100vh;
             position: fixed;
             left: 0;
@@ -99,10 +99,7 @@
         }
         
         .sidebar-nav {
-            padding: 10px 20px;
-            background: transparent; /* hacer transparente porque toda la columna ya tiene el color */
-            border-radius: 0;
-            margin-top: 0;
+            padding: 0 20px;
         }
         
         .sidebar-nav a {
@@ -139,6 +136,7 @@
             width: 20px;
             text-align: center;
             font-size: 1.1rem;
+            color: #ffffff; /* iconos blancos */
         }
         
         /* Main Content */
@@ -196,8 +194,8 @@
         }
         
         .logout-btn {
-            background: #ff6d2f; /* color solicitado */
-            color: #ffffff; /* texto blanco */
+            background: #ff7a00; /* naranja */
+            color: #ffffff;
             border: none;
             padding: 10px 20px;
             border-radius: 6px;
@@ -211,7 +209,7 @@
         }
 
         .logout-btn:hover {
-            background: #e55b20;
+            background: #e06600; /* naranja oscuro para hover */
             transform: translateY(-2px);
         }
         
