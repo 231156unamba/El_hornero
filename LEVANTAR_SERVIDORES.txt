@@ -1,0 +1,34 @@
+Instrucciones para levantar Backend y Frontend
+
+Requisitos:
+- PHP 8.x y Composer instalados
+- Node.js 20+ y npm instalados
+
+Backend (Laravel):
+1) Abrir terminal en: backend
+2) Ejecutar:
+   composer install
+3) Copiar entorno:
+   copiar .env.example a .env
+4) Generar clave:
+   php artisan key:generate
+5) Iniciar servidor:
+   php artisan serve --host=0.0.0.0 --port=8000
+6) API disponible en:
+   http://localhost:8000/api
+
+Frontend (Vite + Vue):
+1) Abrir terminal en: frontend
+2) Instalar dependencias:
+   npm install
+3) Modo desarrollo (recomendado):
+   npm run dev
+   URL: http://localhost:5173/
+4) Modo preview (tras build):
+   npm run build
+   npm run preview
+   URL: http://localhost:4173/
+
+Notas:
+- Logo utilizado: frontend/public/logo.png
+- Si el puerto está ocupado, cambiar el puerto en el comando o cerrar procesos previos.
