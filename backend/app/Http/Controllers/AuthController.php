@@ -29,11 +29,24 @@ class AuthController extends Controller
             // or Sanctum for token authentication.
             // For now, I will replicate the JSON response.
             
+            $tipoRaw = strtolower((string) $user->tipo);
+            if (in_array($tipoRaw, ['admin'])) {
+                $tipoFront = 'admin';
+            } elseif (in_array($tipoRaw, ['caja', 'encargado', 'encargado_caja'])) {
+                $tipoFront = 'caja';
+            } elseif (in_array($tipoRaw, ['cocina', 'kitchen'])) {
+                $tipoFront = 'cocina';
+            } elseif (in_array($tipoRaw, ['pedido', 'mozo'])) {
+                $tipoFront = 'pedido';
+            } else {
+                $tipoFront = 'menu';
+            }
+
             return response()->json([
                 'success' => true,
-                'tipo' => $user->tipo,
-                'id' => $user->id,
-                'usuario' => $user->usuario,
+                'tipo' => $tipoFront,
+                'id' => (int) $user->id,
+                'usuario' => (string) $user->usuario,
             ]);
         }
 
