@@ -11,9 +11,6 @@ class MenuController extends Controller
     {
         try {
             $menu = Menu::orderBy('id')->get();
-            
-            // Map to ensure types if necessary, though Eloquent handles casting if defined in Model.
-            // Original code did explicit casting.
             $data = $menu->map(function ($item) {
                 return [
                     'id' => (int) $item->id,
@@ -21,6 +18,7 @@ class MenuController extends Controller
                     'precio' => (float) $item->precio,
                     'descripcion' => (string) $item->descripcion,
                     'imagen' => (string) $item->imagen,
+                    'categoria' => property_exists($item, 'categoria') ? (string) $item->categoria : null,
                 ];
             });
 
@@ -29,5 +27,60 @@ class MenuController extends Controller
         } catch (\Exception $e) {
             return response()->json(['error' => 'Excepción: ' . $e->getMessage()], 500);
         }
+    }
+
+    public function store(Request $request)
+    {
+        $request->validate([
+            'nombre' => 'required|string',
+            'precio' => 'required|numeric|min:0',
+            'descripcion' => 'required|string',
+            'imagen' => 'required|string',
+            'categoria' => 'nullable|string',
+        ]);
+        $menu = new Menu();
+        $menu->nombre = $request->nombre;
+        $menu->precio = $request->precio;
+        $menu->descripcion = $request->descripcion;
+        $menu->imagen = $request->imagen;
+        if ($request->filled('categoria')) {
+            $menu->categoria = $request->categoria;
+        }
+        $menu->save();
+        return response()->json(['success' => true, 'id' => $menu->id]);
+    }
+
+    public function update(Request $request, $id)
+    {
+        $request->validate([
+            'nombre' => 'required|string',
+            'precio' => 'required|numeric|min:0',
+            'descripcion' => 'required|string',
+            'imagen' => 'required|string',
+            'categoria' => 'nullable|string',
+        ]);
+        $menu = Menu::find($id);
+        if (!$menu) {
+            return response()->json(['success' => false, 'error' => 'No encontrado'], 404);
+        }
+        $menu->nombre = $request->nombre;
+        $menu->precio = $request->precio;
+        $menu->descripcion = $request->descripcion;
+        $menu->imagen = $request->imagen;
+        if ($request->filled('categoria')) {
+            $menu->categoria = $request->categoria;
+        }
+        $menu->save();
+        return response()->json(['success' => true]);
+    }
+
+    public function destroy($id)
+    {
+        $menu = Menu::find($id);
+        if (!$menu) {
+            return response()->json(['success' => false, 'error' => 'No encontrado'], 404);
+        }
+        $menu->delete();
+        return response()->json(['success' => true]);
     }
 }

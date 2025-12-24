@@ -28,7 +28,8 @@ const login = async () => {
 
       // Redirigir según rol
       const rol = response.data.tipo;
-      if (rol === 'admin') router.push('/caja'); 
+      if (rol === 'admin') router.push('/admin'); 
+      else if (rol === 'caja') router.push('/caja'); 
       else if (rol === 'cocina') router.push('/cocina');
       else if (rol === 'pedido') router.push('/pedidos'); 
       else router.push('/menu'); 

@@ -1,7 +1,10 @@
 <script setup>
 import { ref, onMounted } from 'vue';
+import { useRouter } from 'vue-router';
 import api from '../api';
-
+ 
+const router = useRouter();
+const usuarioNombre = ref('Usuario');
 const estadoCaja = ref('Estado: --');
 const monto = ref(100.00);
 const resultado = ref('');
@@ -79,13 +82,22 @@ const enviarSunat = async () => {
 };
 
 onMounted(() => {
+  const rol = localStorage.getItem('rol');
+  if (rol !== 'caja') {
+    router.push('/login');
+    return;
+  }
+  usuarioNombre.value = localStorage.getItem('usuario') || 'Usuario';
   actualizarEstado();
 });
 </script>
-
+ 
 <template>
   <div class="caja-view">
     <h2>Módulo de Caja</h2>
+    <div style="margin-bottom:10px; color:#555;">
+      👤 {{ usuarioNombre }}
+    </div>
 
     <div class="container">
       <div class="row mb-2">
