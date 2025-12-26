@@ -47,6 +47,8 @@ class AuthController extends Controller
                 'tipo' => $tipoFront,
                 'id' => (int) $user->id,
                 'usuario' => (string) $user->usuario,
+                'nombres' => (string) ($user->nombres ?? ''),
+                'apellidos' => (string) ($user->apellidos ?? ''),
             ]);
         }
 

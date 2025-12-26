@@ -49,10 +49,12 @@ class PedidoController extends Controller
         $request->validate([
             'mesa' => 'required|integer',
             'detalle' => 'required|string',
+            'usuario_id' => 'required|integer',
         ]);
 
         $pedido = new Pedido();
         $pedido->mesa = $request->mesa;
+        $pedido->usuario_id = $request->usuario_id;
         $pedido->detalle = $request->detalle;
         $pedido->estado = 'pedido';
         $pedido->fecha = now();

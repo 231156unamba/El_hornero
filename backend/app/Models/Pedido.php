@@ -14,6 +14,7 @@ class Pedido extends Model
 
     protected $fillable = [
         'mesa',
+        'usuario_id',
         'detalle',
         'estado',
         'fecha',
