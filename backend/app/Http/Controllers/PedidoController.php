@@ -4,12 +4,43 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\Pedido;
+use App\Models\Menu;
 
 class PedidoController extends Controller
 {
     public function index()
     {
-        $pedidos = Pedido::orderBy('fecha', 'desc')->get();
+        $pedidos = Pedido::orderBy('fecha', 'desc')->get()->map(function ($p) {
+            $total = 0.0;
+            $detalle = (string) $p->detalle;
+            $parts = array_map('trim', explode(',', $detalle));
+            foreach ($parts as $part) {
+                if (preg_match('/(\d+)\s*x\s*(.+)/i', $part, $m)) {
+                    $qty = (int) $m[1];
+                    $nombre = trim($m[2]);
+                    $nombre = preg_replace('/\(.*$/', '', $nombre);
+                    $menu = Menu::where('nombre', $nombre)->first();
+                    if ($menu) {
+                        $total += $qty * (float) $menu->precio;
+                    }
+                    if (preg_match('/S\/\.?\s*([0-9]+(?:\.[0-9]+)?)/i', $part, $m2)) {
+                        $total += (float) $m2[1];
+                    }
+                } else {
+                    if (preg_match('/S\/\.?\s*([0-9]+(?:\.[0-9]+)?)/i', $part, $m3)) {
+                        $total += (float) $m3[1];
+                    }
+                }
+            }
+            return [
+                'id' => (int) $p->id,
+                'mesa' => (int) $p->mesa,
+                'detalle' => (string) $p->detalle,
+                'estado' => (string) $p->estado,
+                'fecha' => (string) $p->fecha,
+                'costo' => round($total, 2),
+            ];
+        });
         return response()->json($pedidos);
     }
 

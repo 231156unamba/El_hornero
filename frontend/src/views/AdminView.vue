@@ -10,7 +10,7 @@ ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, BarEleme
 const router = useRouter();
 const stats = ref({ pedidosHoy: 0, ventasHoy: 0, totalClientes: 0, pedidosPendientes: 0 });
 const recientes = ref([]);
-const form = ref({ id: null, nombre: '', precio: '', categoria: '', imagen: '', descripcion: '' });
+const form = ref({ id: null, nombre: '', precio: '', categoria: 'comida', imagen: '', descripcion: '' });
 const menu = ref([]);
 const editing = ref(false);
 const activeTab = ref('dashboard');
@@ -126,7 +126,7 @@ const submitMenu = async () => {
 };
 const editItem = (item) => {
   editing.value = true;
-  form.value = { id: item.id, nombre: item.nombre, precio: item.precio, categoria: item.categoria || '', imagen: item.imagen, descripcion: item.descripcion };
+  form.value = { id: item.id, nombre: item.nombre, precio: item.precio, categoria: item.categoria || 'comida', imagen: item.imagen, descripcion: item.descripcion };
 };
 const deleteItem = async (id) => {
   await api.delete(`/menu/${id}`);
@@ -134,7 +134,7 @@ const deleteItem = async (id) => {
 };
 const clearForm = () => {
   editing.value = false;
-  form.value = { id: null, nombre: '', precio: '', categoria: '', imagen: '', descripcion: '' };
+  form.value = { id: null, nombre: '', precio: '', categoria: 'comida', imagen: '', descripcion: '' };
 };
 const logout = () => {
   localStorage.clear();
@@ -200,15 +200,18 @@ const logout = () => {
               <label>Precio</label>
               <input v-model="form.precio" type="number" step="0.01" class="form-control" required>
             </div>
-            <div class="form-group">
-              <label>Categoría</label>
-              <input v-model="form.categoria" class="form-control">
-            </div>
-            <div class="form-group">
-              <label>Imagen URL</label>
-              <input v-model="form.imagen" type="url" class="form-control" required>
-            </div>
-            <div class="form-group full-width">
+          <div class="form-group">
+            <label>Categoría</label>
+            <select v-model="form.categoria" class="form-control" required>
+              <option value="comida">Comida</option>
+              <option value="bebidas">Bebidas</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Imagen URL</label>
+            <input v-model="form.imagen" type="url" class="form-control" required>
+          </div>
+          <div class="form-group full-width">
               <label>Descripción</label>
               <textarea v-model="form.descripcion" class="form-control" rows="3" required></textarea>
             </div>
@@ -288,6 +291,7 @@ const logout = () => {
               <th>Mesa</th>
               <th>Fecha</th>
               <th>Estado</th>
+              <th>Costo</th>
               <th>Detalle</th>
             </tr>
           </thead>
@@ -297,6 +301,7 @@ const logout = () => {
               <td>{{ p.mesa }}</td>
               <td>{{ p.fecha }}</td>
               <td>{{ p.estado }}</td>
+              <td>S/. {{ Number(p.costo || 0).toFixed(2) }}</td>
               <td>{{ p.detalle }}</td>
             </tr>
           </tbody>
