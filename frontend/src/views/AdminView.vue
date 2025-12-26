@@ -335,8 +335,8 @@ const logout = () => {
   min-height: 100vh;
 }
 .topbar {
-  background: white;
-  padding: 16px;
+  background-color: #ff9d5c !important;
+  padding: 4px 16px;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -348,11 +348,11 @@ const logout = () => {
   gap: 10px;
 }
 .logo img {
-  height: 40px;
+  height: 80px;
 }
 .logo h1 {
-  font-size: 20px;
-  color: #f1af32;
+  font-size: 25px;
+  color: white;
   font-weight: 700;
   margin: 0;
 }
