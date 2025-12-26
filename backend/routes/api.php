@@ -43,4 +43,7 @@ Route::prefix('admin')->group(function () {
     Route::get('/pedidos-diarios', [AdminController::class, 'pedidosDiarios']);
     Route::get('/pedidos-mensuales', [AdminController::class, 'pedidosMensuales']);
     Route::get('/pedidos-anuales', [AdminController::class, 'pedidosAnuales']);
+    Route::get('/reportes/pedidos', [AdminController::class, 'reportePedidos']);
+    Route::get('/reportes/pedidos-mesero', [AdminController::class, 'reportePedidosPorMesero']);
+    Route::get('/reportes/recibos-entregados', [AdminController::class, 'reporteRecibosEntregados']);
 });

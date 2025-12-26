@@ -14,6 +14,11 @@ const carrito = ref([]);
 const ajustePrecio = ref(null);
 const ajusteDescripcion = ref('');
 const usuarioNombre = ref('');
+const bebidaSeleccionada = ref('');
+const cantidadBebida = ref(1);
+
+const platosMenu = computed(() => menu.value.filter(p => (p.categoria || 'comida') === 'comida'));
+const bebidasMenu = computed(() => menu.value.filter(p => (p.categoria || 'comida') === 'bebidas'));
 
 // Verificar sesión
 onMounted(async () => {
@@ -61,6 +66,19 @@ const agregarTarjeta = () => {
   }
 };
 
+const agregarBebida = () => {
+  if (!bebidaSeleccionada.value) return;
+  const bebida = menu.value.find(p => p.id === bebidaSeleccionada.value);
+  if (bebida) {
+    carrito.value.push({
+      ...bebida,
+      cantidad: cantidadBebida.value
+    });
+    bebidaSeleccionada.value = '';
+    cantidadBebida.value = 1;
+  }
+};
+
 const eliminarDelCarrito = (index) => {
   carrito.value.splice(index, 1);
 };
@@ -85,7 +103,8 @@ const crearPedido = async () => {
   try {
     const response = await api.post('/pedidos', {
       mesa: mesaSeleccionada.value,
-      detalle: detalleStr
+      detalle: detalleStr,
+      usuario_id: Number(localStorage.getItem('userId')) || undefined
     });
 
     if (response.data.success) {
@@ -128,21 +147,44 @@ const logout = () => {
         <option v-for="m in mesas" :key="m" :value="m">Mesa {{ m }}</option>
       </select>
 
-      <label>Agregar Plato</label>
-      <div class="row add-item-row">
-        <div class="col-select">
-          <select v-model="platoSeleccionado">
-            <option value="">Seleccione un plato</option>
-            <option v-for="p in menu" :key="p.id" :value="p.id">{{ p.nombre }} - S/. {{ p.precio }}</option>
-          </select>
-        </div>
-        <div class="col-qty">
-          <div class="qty-control">
-            <button type="button" class="qty-btn" @click="cantidad = Math.max(1, cantidad - 1)">−</button>
-            <input v-model.number="cantidad" type="number" min="1" step="1" placeholder="Cant." />
-            <button type="button" class="qty-btn" @click="cantidad = cantidad + 1">+</button>
+      <div class="add-grid">
+        <div class="add-card">
+          <div class="add-title">Plato</div>
+          <div class="row add-item-row">
+            <div class="col-select">
+              <select v-model="platoSeleccionado">
+                <option value="">Seleccione un plato</option>
+                <option v-for="p in platosMenu" :key="p.id" :value="p.id">{{ p.nombre }} - S/. {{ p.precio }}</option>
+              </select>
+            </div>
+            <div class="col-qty">
+              <div class="qty-control">
+                <button type="button" class="qty-btn" @click="cantidad = Math.max(1, cantidad - 1)">−</button>
+                <input v-model.number="cantidad" type="number" min="1" step="1" placeholder="Cant." />
+                <button type="button" class="qty-btn" @click="cantidad = cantidad + 1">+</button>
+              </div>
+              <button class="btn btn-add" @click="agregarTarjeta">Agregar</button>
+            </div>
           </div>
-          <button class="btn btn-add" @click="agregarTarjeta">Agregar</button>
+        </div>
+        <div class="add-card">
+          <div class="add-title">Bebida</div>
+          <div class="row add-item-row">
+            <div class="col-select">
+              <select v-model="bebidaSeleccionada">
+                <option value="">Seleccione una bebida</option>
+                <option v-for="b in bebidasMenu" :key="b.id" :value="b.id">{{ b.nombre }} - S/. {{ b.precio }}</option>
+              </select>
+            </div>
+            <div class="col-qty">
+              <div class="qty-control">
+                <button type="button" class="qty-btn" @click="cantidadBebida = Math.max(1, cantidadBebida - 1)">−</button>
+                <input v-model.number="cantidadBebida" type="number" min="1" step="1" placeholder="Cant." />
+                <button type="button" class="qty-btn" @click="cantidadBebida = cantidadBebida + 1">+</button>
+              </div>
+              <button class="btn btn-add" @click="agregarBebida">Agregar</button>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -335,6 +377,9 @@ select, input, textarea {
 }
 .qty-btn:hover { background: #ffe0b2; }
 .btn-add { width: 100%; }
+.add-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-top: 10px; }
+.add-card { border: 1px solid #ffd1a6; border-radius: 10px; padding: 12px; background: #fff9f2; }
+.add-title { font-weight: 700; color: #bf360c; margin-bottom: 8px; }
 .item-header {
   font-weight: bold;
   margin-bottom: 10px;
@@ -369,6 +414,9 @@ select, input, textarea {
   h3 { font-size: clamp(16px, 4.5vw, 20px); }
   select, input, textarea { font-size: 16px; padding: 12px; }
   .qty-btn { width: 40px; height: 40px; font-size: 22px; }
+  .add-grid { grid-template-columns: 1fr; gap: 10px; }
+  .add-card { padding: 10px; }
+  .add-item-row { gap: 10px; }
 }
 button:disabled {
   background-color: #ccc;

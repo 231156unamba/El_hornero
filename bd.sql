@@ -6,6 +6,8 @@ USE el_hornero;
 CREATE TABLE usuarios (
     id INT AUTO_INCREMENT PRIMARY KEY,
     usuario VARCHAR(50) NOT NULL UNIQUE,
+    nombres VARCHAR(100) NOT NULL,
+    apellidos VARCHAR(100) NOT NULL,
     clave VARCHAR(100) NOT NULL,
     tipo ENUM('admin','cocina','pedido','caja') NOT NULL
 );
@@ -37,9 +39,11 @@ CREATE TABLE venta (
 CREATE TABLE pedido (
     id INT AUTO_INCREMENT PRIMARY KEY,
     mesa INT NOT NULL,
+    usuario_id INT,
     detalle TEXT,
     estado ENUM('pedido','preparado','entregado') DEFAULT 'pedido',
-    fecha DATETIME DEFAULT CURRENT_TIMESTAMP
+    fecha DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (usuario_id) REFERENCES usuarios(id)
 );
 
 CREATE TABLE venta_detalle (
@@ -75,11 +79,11 @@ CREATE TABLE sunat_log (
 );
 
 
-INSERT INTO usuarios (usuario, clave, tipo) VALUES
-('admin', 'admin123', 'admin'),
-('cocinero', 'cocina123', 'cocina'),
-('mesero', 'pedido123', 'pedido'),
-('cajero', 'caja123', 'caja');
+INSERT INTO usuarios (usuario, nombres, apellidos, clave, tipo) VALUES
+('admin', 'Administrador', 'General', 'admin123', 'admin'),
+('cocinero', 'Juan', 'Cocinero', 'cocina123', 'cocina'),
+('mesero', 'Luis', 'Mesero', 'pedido123', 'pedido'),
+('cajero', 'Ana', 'Cajera', 'caja123', 'caja');
 
 
 INSERT INTO menu (nombre, precio, descripcion, imagen, categoria) VALUES
