@@ -177,6 +177,7 @@ const logout = () => {
          <div v-for="p in pedidos" :key="p.id" class="tarjeta-pedido" style="background: #fff3e0;">
             <div style="font-weight:bold; color:#e65100;">Mesa {{ p.mesa }} <span style="float:right; font-size:12px; color:#555;">{{ p.estado }}</span></div>
             <div style="margin-top:5px;">{{ p.detalle }}</div>
+            <div style="margin-top:5px; font-weight:bold; color:#bf360c;">Costo: S/. {{ Number(p.costo || 0).toFixed(2) }}</div>
             <small style="color:#888;">{{ p.fecha }}</small>
          </div>
       </div>
