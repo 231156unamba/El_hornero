@@ -56,6 +56,61 @@ class AdminController extends Controller
         });
         return response()->json($usuarios);
     }
+    
+    public function crearUsuario(Request $request)
+    {
+        $request->validate([
+            'usuario' => 'required|string|unique:usuarios,usuario',
+            'nombres' => 'required|string',
+            'apellidos' => 'required|string',
+            'clave' => 'required|string',
+            'tipo' => 'required|string|in:admin,cocina,pedido,caja',
+        ]);
+        $u = new Usuario();
+        $u->usuario = $request->usuario;
+        $u->nombres = $request->nombres;
+        $u->apellidos = $request->apellidos;
+        $u->clave = $request->clave;
+        $u->tipo = $request->tipo;
+        $u->save();
+        return response()->json(['success' => true, 'id' => $u->id]);
+    }
+    
+    public function actualizarUsuario(Request $request, $id)
+    {
+        $request->validate([
+            'usuario' => 'required|string|unique:usuarios,usuario,'.$id,
+            'nombres' => 'required|string',
+            'apellidos' => 'required|string',
+            'tipo' => 'required|string|in:admin,cocina,pedido,caja',
+        ]);
+        $u = Usuario::find($id);
+        if (!$u) {
+            return response()->json(['success' => false, 'error' => 'No encontrado'], 404);
+        }
+        $u->usuario = $request->usuario;
+        $u->nombres = $request->nombres;
+        $u->apellidos = $request->apellidos;
+        if ($request->filled('clave')) {
+            $u->clave = $request->clave;
+        }
+        $u->tipo = $request->tipo;
+        $u->save();
+        return response()->json(['success' => true]);
+    }
+    
+    public function eliminarUsuario($id)
+    {
+        if ((int) $id === 1) {
+            return response()->json(['success' => false, 'error' => 'Usuario protegido, no se puede eliminar'], 403);
+        }
+        $u = Usuario::find($id);
+        if (!$u) {
+            return response()->json(['success' => false, 'error' => 'No encontrado'], 404);
+        }
+        $u->delete();
+        return response()->json(['success' => true]);
+    }
 
     public function ventasDiarias()
     {

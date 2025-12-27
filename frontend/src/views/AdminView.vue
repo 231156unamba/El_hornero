@@ -28,6 +28,8 @@ const chartOptions = {
   plugins: { legend: { position: 'top' }, title: { display: false } }
 };
 const loaded = ref({ stats: false, recientes: false, usuarios: false, pedidos: false });
+const userForm = ref({ id: null, usuario: '', nombres: '', apellidos: '', clave: '', tipo: 'pedido' });
+const userEditing = ref(false);
 
 onMounted(() => {
   const rol = localStorage.getItem('rol');
@@ -63,6 +65,34 @@ const loadUsuarios = async () => {
   const r = await api.get('/admin/usuarios');
   usuarios.value = r.data;
   loaded.value.usuarios = true;
+};
+const submitUsuario = async () => {
+  const payload = {
+    usuario: userForm.value.usuario,
+    nombres: userForm.value.nombres,
+    apellidos: userForm.value.apellidos,
+    clave: userForm.value.clave,
+    tipo: userForm.value.tipo,
+  };
+  if (userEditing.value && userForm.value.id) {
+    await api.put(`/admin/usuarios/${userForm.value.id}`, payload);
+  } else {
+    await api.post('/admin/usuarios', payload);
+  }
+  clearUsuarioForm();
+  loadUsuarios();
+};
+const editUsuario = (u) => {
+  userEditing.value = true;
+  userForm.value = { id: u.id, usuario: u.usuario, nombres: u.nombres || '', apellidos: u.apellidos || '', clave: '', tipo: u.tipo || 'pedido' };
+};
+const deleteUsuario = async (id) => {
+  await api.delete(`/admin/usuarios/${id}`);
+  loadUsuarios();
+};
+const clearUsuarioForm = () => {
+  userEditing.value = false;
+  userForm.value = { id: null, usuario: '', nombres: '', apellidos: '', clave: '', tipo: 'pedido' };
 };
 const loadPedidos = async () => {
   const r = await api.get('/pedidos');
@@ -380,6 +410,41 @@ const exportReportPDF = () => {
 
       <section v-if="activeTab==='usuarios' && loaded.usuarios" class="content-section">
         <h2 class="section-title">Usuarios</h2>
+        <form class="add-form" @submit.prevent="submitUsuario">
+          <div class="form-grid">
+            <div class="form-group">
+              <label>Usuario</label>
+              <input v-model="userForm.usuario" class="form-control" required>
+            </div>
+            <div class="form-group">
+              <label>Nombres</label>
+              <input v-model="userForm.nombres" class="form-control" required>
+            </div>
+            <div class="form-group">
+              <label>Apellidos</label>
+              <input v-model="userForm.apellidos" class="form-control" required>
+            </div>
+            <div class="form-group">
+              <label>Clave</label>
+              <input v-model="userForm.clave" type="password" class="form-control" :required="!userEditing">
+              <small style="color:#777;">No visible; úsalo solo para cambiarla</small>
+            </div>
+            <div class="form-group">
+              <label>Tipo</label>
+              <select v-model="userForm.tipo" class="form-control" required>
+                <option value="admin">Admin</option>
+                <option value="cocina">Cocina</option>
+                <option value="pedido">Pedido</option>
+                <option value="caja">Caja</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-buttons">
+            <button type="submit" class="btn btn-primary">{{ userEditing ? 'Guardar' : 'Crear Usuario' }}</button>
+            <button type="button" class="btn btn-warning" @click="clearUsuarioForm" v-if="userEditing">Cancelar Edición</button>
+            <button type="button" class="btn btn-danger" @click="clearUsuarioForm">Limpiar</button>
+          </div>
+        </form>
         <table class="orders-table">
           <thead>
             <tr>
@@ -388,6 +453,7 @@ const exportReportPDF = () => {
               <th>Nombres</th>
               <th>Apellidos</th>
               <th>Tipo</th>
+              <th>Acciones</th>
             </tr>
           </thead>
           <tbody>
@@ -397,6 +463,11 @@ const exportReportPDF = () => {
               <td>{{ c.nombres }}</td>
               <td>{{ c.apellidos }}</td>
               <td>{{ c.tipo }}</td>
+              <td>
+                <button class="btn btn-success" @click="editUsuario(c)">Editar</button>
+                <button class="btn btn-danger" v-if="c.id !== 1" @click="deleteUsuario(c.id)">Eliminar</button>
+                <button class="btn btn-danger" v-else disabled>Eliminar</button>
+              </td>
             </tr>
           </tbody>
         </table>
