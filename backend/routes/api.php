@@ -46,4 +46,8 @@ Route::prefix('admin')->group(function () {
     Route::get('/reportes/pedidos', [AdminController::class, 'reportePedidos']);
     Route::get('/reportes/pedidos-mesero', [AdminController::class, 'reportePedidosPorMesero']);
     Route::get('/reportes/recibos-entregados', [AdminController::class, 'reporteRecibosEntregados']);
+    
+    Route::post('/usuarios', [AdminController::class, 'crearUsuario']);
+    Route::put('/usuarios/{id}', [AdminController::class, 'actualizarUsuario']);
+    Route::delete('/usuarios/{id}', [AdminController::class, 'eliminarUsuario']);
 });
