@@ -146,7 +146,6 @@ const logout = () => {
   <div class="admin-page">
     <header class="topbar">
       <div class="logo">
-        <img src="/logo.png" alt="El Hornero">
         <h1>EL HORNERO</h1>
       </div>
       <div class="user-actions">
@@ -335,12 +334,12 @@ const logout = () => {
   min-height: 100vh;
 }
 .topbar {
-  background-color: #ff9d5c !important;
-  padding: 4px 16px;
+  background-color: #111827 !important;
+  padding: 15px 30px;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 .logo {
   display: flex;
@@ -352,7 +351,7 @@ const logout = () => {
 }
 .logo h1 {
   font-size: 25px;
-  color: white;
+  color: #f1af32;
   font-weight: 700;
   margin: 0;
 }
