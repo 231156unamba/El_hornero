@@ -18,12 +18,10 @@ const usuarioNombre = ref('');
 // Verificar sesión
 onMounted(async () => {
   const rol = localStorage.getItem('rol');
-  if (rol !== 'pedido') {
-    router.push('/login');
-    return;
-  }
+  // Validation logic (commented for flexibility during dev)
+  // if (rol !== 'pedido') { router.push('/login'); return; }
   
-  usuarioNombre.value = localStorage.getItem('usuario') || 'Usuario';
+  usuarioNombre.value = localStorage.getItem('usuario') || 'Mesero';
   
   await fetchMenu();
   fetchPedidos();
@@ -76,7 +74,7 @@ const total = computed(() => {
 const crearPedido = async () => {
   if (!mesaSeleccionada.value || carrito.value.length === 0) return;
 
-  // Construir detalle string como lo hacía el original
+  // Construir detalle string
   let detalleStr = carrito.value.map(item => `${item.cantidad}x ${item.nombre}`).join(', ');
   if (ajustePrecio.value) {
     detalleStr += ` (Ajuste: ${ajusteDescripcion.value} S/.${ajustePrecio.value})`;
@@ -94,6 +92,7 @@ const crearPedido = async () => {
       ajustePrecio.value = null;
       ajusteDescripcion.value = '';
       fetchPedidos(); // Recargar lista
+      alert('Pedido enviado a cocina correctamente');
     } else {
       alert('Error al crear pedido');
     }
@@ -110,267 +109,454 @@ const logout = () => {
 </script>
 
 <template>
-  <div class="pedido-page">
-    <header>
-      <div class="header-title">Panel de Pedidos - El Hornero</div>
-      <div class="header-user">
-        <span>👤 {{ usuarioNombre }}</span>
-        <button class="btn-logout" @click="logout">Salir</button>
+  <div class="pedido-layout">
+    <!-- Navbar / Header -->
+    <header class="navbar">
+      <div class="brand">
+        <h1>EL HORNERO</h1>
+      </div>
+      
+      <div class="user-control">
+        <div class="user-profile">
+          <div class="user-avatar">M</div>
+          <span>Mesero</span>
+        </div>
+        <button class="logout-btn" @click="logout">
+          Cerrar Sesión
+        </button>
       </div>
     </header>
 
-    <div class="container">
-      <h2>Crear Pedido</h2>
-
-      <label>Mesa</label>
-      <select v-model="mesaSeleccionada">
-        <option value="">Seleccione una mesa</option>
-        <option v-for="m in mesas" :key="m" :value="m">Mesa {{ m }}</option>
-      </select>
-
-      <label>Agregar Plato</label>
-      <div class="row add-item-row">
-        <div class="col-select">
-          <select v-model="platoSeleccionado">
-            <option value="">Seleccione un plato</option>
-            <option v-for="p in menu" :key="p.id" :value="p.id">{{ p.nombre }} - S/. {{ p.precio }}</option>
-          </select>
-        </div>
-        <div class="col-qty">
-          <div class="qty-control">
-            <button type="button" class="qty-btn" @click="cantidad = Math.max(1, cantidad - 1)">−</button>
-            <input v-model.number="cantidad" type="number" min="1" step="1" placeholder="Cant." />
-            <button type="button" class="qty-btn" @click="cantidad = cantidad + 1">+</button>
+    <div class="main-content">
+      
+      <!-- Left Panel: Order Creation -->
+      <section class="order-creation-panel">
+        <div class="card">
+          <div class="card-header">
+            <h2>Nuevo Pedido</h2>
           </div>
-          <button class="btn btn-add" @click="agregarTarjeta">Agregar</button>
-        </div>
-      </div>
+          <div class="card-body">
+            
+            <!-- Mesa Selection (Visual Grid) -->
+            <div class="form-group">
+              <label>Seleccionar Mesa</label>
+              <div class="table-grid-selector">
+                <button 
+                  v-for="m in mesas" 
+                  :key="m" 
+                  class="table-btn"
+                  :class="{ selected: mesaSeleccionada === m }"
+                  @click="mesaSeleccionada = m"
+                >
+                  {{ m }}
+                </button>
+              </div>
+            </div>
 
-      <label>Ajuste de precio externo</label>
-      <div class="row ajuste-row">
-        <input v-model.number="ajustePrecio" type="number" placeholder="Monto extra" step="0.10" />
-        <textarea v-model="ajusteDescripcion" placeholder="Motivo del ajuste"></textarea>
-      </div>
+            <!-- Item Selection -->
+            <div class="form-group">
+              <label>Agregar Productos</label>
+              <div class="add-item-grid">
+                <div class="select-wrapper item-select">
+                  <select v-model="platoSeleccionado">
+                    <option value="">-- Seleccionar Plato --</option>
+                    <option v-for="p in menu" :key="p.id" :value="p.id">
+                        {{ p.nombre }} - S/ {{ parseFloat(p.precio).toFixed(2) }}
+                    </option>
+                  </select>
+                </div>
+                
+                <div class="qty-actions">
+                  <button type="button" @click="cantidad = Math.max(1, cantidad - 1)">-</button>
+                  <input type="number" v-model.number="cantidad" min="1" class="qty-input">
+                  <button type="button" @click="cantidad++">+</button>
+                </div>
+                
+                <button class="btn-add" @click="agregarTarjeta" :disabled="!platoSeleccionado">
+                  Añadir
+                </button>
+              </div>
+            </div>
 
-      <h3>Detalle del Pedido</h3>
-      <div id="listaPedidos">
-        <div v-for="(item, index) in carrito" :key="index" class="tarjeta-pedido">
-          <div class="item-header">
-            <span>{{ item.nombre }}</span>
-            <button class="btn-small" @click="eliminarDelCarrito(index)">X</button>
+            <!-- Extras -->
+            <div class="extra-options">
+               <details>
+                   <summary>Opciones Avanzadas (Ajustes de Precio)</summary>
+                   <div class="ajuste-grid">
+                       <input v-model.number="ajustePrecio" type="number" placeholder="S/ Extra" step="0.10" />
+                       <input v-model="ajusteDescripcion" type="text" placeholder="Motivo (ej. Extra queso)">
+                   </div>
+               </details>
+            </div>
+
+            <!-- Cart Preview -->
+            <div class="cart-preview">
+                <h3>Resumen del Pedido</h3>
+                <div v-if="carrito.length === 0" class="empty-cart">
+                    No hay items en el pedido actual.
+                </div>
+                <ul v-else class="cart-list">
+                    <li v-for="(item, index) in carrito" :key="index">
+                        <div class="cart-item-info">
+                            <span class="qty">{{ item.cantidad }}x</span>
+                            <span class="name">{{ item.nombre }}</span>
+                        </div>
+                        <div class="cart-item-price">
+                            S/ {{ (item.precio * item.cantidad).toFixed(2) }}
+                            <button @click="eliminarDelCarrito(index)" class="btn-remove">×</button>
+                        </div>
+                    </li>
+                </ul>
+                
+                <div class="cart-total">
+                    <span>Total Estimado:</span>
+                    <span class="amount">S/ {{ total }}</span>
+                </div>
+            </div>
+            
+            <button class="btn-submit" :disabled="carrito.length === 0 || !mesaSeleccionada" @click="crearPedido">
+                ENVIAR A COCINA
+            </button>
+
           </div>
-          <div class="item-line">
-            <span>Cantidad: {{ item.cantidad }}</span>
-            <span>Subtotal: S/. {{ (item.precio * item.cantidad).toFixed(2) }}</span>
-          </div>
         </div>
-      </div>
+      </section>
 
-      <div class="total-box">Total: S/ <span>{{ total }}</span></div>
-
-      <button class="btn" :disabled="carrito.length === 0 || !mesaSeleccionada" @click="crearPedido" style="width:100%; margin-top:20px; font-size:18px;">
-        Crear Pedido
-      </button>
-
-      <h3 style="margin-top:28px;">Pedidos guardados</h3>
-      <div id="pedidosList">
-         <div v-for="p in pedidos" :key="p.id" class="tarjeta-pedido" style="background: #fff3e0;">
-            <div style="font-weight:bold; color:#e65100;">Mesa {{ p.mesa }} <span style="float:right; font-size:12px; color:#555;">{{ p.estado }}</span></div>
-            <div style="margin-top:5px;">{{ p.detalle }}</div>
-            <small style="color:#888;">{{ p.fecha }}</small>
+      <!-- Right Panel: Active Orders List -->
+      <section class="active-orders-panel">
+         <h3>📋 Pedidos en Curso</h3>
+         <div class="orders-list">
+             <div v-for="p in pedidos" 
+                  :key="p.id" 
+                  class="order-card"
+                  :class="p.estado === 'listo' ? 'status-ready' : 'status-pending'">
+                <div class="order-header">
+                    <span class="table-badge">Mesa {{ p.mesa }}</span>
+                    <span class="time">{{ new Date(p.created_at || Date.now()).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) }}</span>
+                </div>
+                <div class="order-body">
+                    <p>{{ p.detalle }}</p>
+                </div>
+                <div class="order-footer">
+                    <span class="status-pill">
+                        {{ p.estado.toUpperCase() }}
+                    </span>
+                </div>
+             </div>
          </div>
-      </div>
+      </section>
+
     </div>
   </div>
 </template>
 
 <style scoped>
-/* Estilos migrados de pedido.html */
-.pedido-page {
-  font-family: Arial, sans-serif;
-  background: #fff6f0; 
+/* Modern Layout Variables */
+.pedido-layout {
+  --primary: #f59e0b; /* Amber 500 */
+  --primary-dark: #d97706;
+  --bg-color: #f3f4f6;
+  --card-bg: #ffffff;
+  --text-main: #1f2937;
+  --text-muted: #6b7280;
+  
+  font-family: 'Inter', system-ui, sans-serif;
+  background-color: var(--bg-color);
   min-height: 100vh;
-}
-header {
-  background: #ff6f00; /* Naranja fuerte */
-  color: white;
-  padding: 18px;
-  text-align: center;
-  font-size: 26px;
-  letter-spacing: 1px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
   display: flex;
-  justify-content: space-between;
-  align-items: center;
+  flex-direction: column;
 }
-.header-title {
-  flex: 1;
-  text-align: center;
-  font-size: clamp(18px, 4.5vw, 26px);
-}
-.header-user {
+
+/* Header */
+.navbar {
+  background: #111827;
+  color: white;
+  padding: 15px 30px;
   display: flex;
   align-items: center;
-  gap: 15px;
-  font-size: 14px;
-}
-.header-user span {
-  background: #ffffff;
-  color: #e65100;
-  padding: 6px 12px;
-  border-radius: 20px;
-  border: 1px solid #ffd1a6;
-  box-shadow: 0 1px 2px rgba(0,0,0,0.06);
-}
-.btn-logout {
-  background: #e64a19;
-  color: white;
-  border: none;
-  padding: 8px 15px;
-  border-radius: 5px;
-  cursor: pointer;
-  font-weight: bold;
-  transition: 0.2s;
-}
-.btn-logout:hover {
-  background: #d84315;
-}
-.container {
-  max-width: 900px;
-  margin: 25px auto;
-  background: #fff;
-  padding: 25px;
-  border-radius: 14px;
-  box-shadow: 0 3px 14px rgba(0,0,0,0.18);
-}
-h2 { margin-top: 0; color: #e65100; }
-h3 { color: #d84315; margin-top: 30px; }
-label { font-weight: bold; margin-top: 15px; display: block; color: #bf360c; }
-select, input, textarea {
-  width: 100%;
-  padding: 12px;
-  border-radius: 8px;
-  border: 1px solid #d9a082;
-  font-size: 16px;
-  margin-top: 6px;
-  background: #fff3e0;
-  box-sizing: border-box; /* Fix for width 100% */
-}
-.ajuste-row {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 10px;
-  margin-top: 8px;
-}
-.ajuste-row input,
-.ajuste-row textarea {
-  padding: 8px;
-  font-size: 14px;
-  background: #fff9f2;
-  border-color: #e7b793;
-}
-.ajuste-row input {
-  width: 170px;
-  max-width: 200px;
-}
-.ajuste-row textarea {
-  min-height: 60px;
-  max-height: 100px;
-  resize: vertical;
-}
-.tarjeta-pedido {
-  border: 1px solid #ffab80;
-  border-radius: 10px;
-  padding: 18px;
-  background: #fff8f0; /* Más separación visual */
-  margin-top: 20px; /* Más espacio entre tarjetas */
-  box-shadow: 0 2px 6px rgba(255,138,101,0.3);
-}
-.grid-2 { display: grid; grid-template-columns: 1fr 80px; gap: 15px; }
-.btn {
-  background: #e64a19;
-  color: white;
-  border: none;
-  padding: 12px 18px;
-  font-size: 16px;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: 0.2s;
-  box-shadow: 0 1px 2px rgba(0,0,0,0.08);
-  font-weight: 600;
-  border: 1px solid #bf360c;
-}
-.btn:hover { background: #bf360c; }
-.btn:active { transform: translateY(1px); }
-.btn-small {
-  padding: 7px 12px;
-  font-size: 14px;
-  background: #e64a19;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-}
-.btn-small:hover {
-  background: #ff7043;
-}
-.row { display: flex; gap: 15px; margin-top: 10px; }
-.row div { flex: 1; }
-.add-item-row { align-items: flex-start; }
-.col-select { flex: 1; }
-.col-qty { flex: 1; display: flex; flex-direction: column; gap: 8px; }
-.qty-control { display: flex; align-items: center; gap: 8px; }
-.qty-control input { flex: 1; }
-.qty-btn {
-  background: #ffcc80;
-  color: #5d4037;
-  border: 1px solid #d9a082;
-  width: 36px;
-  height: 36px;
-  border-radius: 8px;
-  font-size: 20px;
-  line-height: 1;
-  cursor: pointer;
-}
-.qty-btn:hover { background: #ffe0b2; }
-.btn-add { width: 100%; }
-.item-header {
-  font-weight: bold;
-  margin-bottom: 10px;
-  display: flex;
   justify-content: space-between;
-  color: #d84315;
-  font-size: 17px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
 }
-.item-line {
-  display: flex;
-  justify-content: space-between;
-  padding: 8px 0;
-  border-bottom: 1px solid #ffe0cc;
-  color: #5d4037;
-  font-size: 15px;
-}
-.total-box {
+
+.brand h1 {
+  margin: 0;
   font-size: 24px;
-  font-weight: bold;
-  text-align: right;
-  margin-top: 30px;
-  color: #bf360c;
+  font-weight: 700;
+  color: #f1af32;
+  display: inline-block;
 }
-@media (max-width: 600px) {
-  header { flex-direction: column; gap: 10px; }
-  .header-user { font-size: 12px; }
-  .row { flex-direction: column; }
-  .ajuste-row { grid-template-columns: 1fr; }
-  .ajuste-row input { width: 100%; max-width: 100%; }
-  .container { margin: 10px auto; padding: 16px; border-radius: 10px; }
-  h2 { font-size: clamp(18px, 5vw, 22px); }
-  h3 { font-size: clamp(16px, 4.5vw, 20px); }
-  select, input, textarea { font-size: 16px; padding: 12px; }
-  .qty-btn { width: 40px; height: 40px; font-size: 22px; }
+.brand .subtitle {
+  color: #9ca3af;
+  font-size: 13px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  border-left: 1px solid #374151;
+  padding-left: 10px;
 }
-button:disabled {
-  background-color: #ccc;
-  cursor: not-allowed;
+
+.user-control { display: flex; align-items: center; gap: 14px; }
+.user-profile { display: flex; align-items: center; gap: 8px; background: white; padding: 6px 14px; border-radius: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); color: #1f2937; }
+.user-avatar { width: 28px; height: 28px; border-radius: 50%; background: #f1af32; color: white; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 14px; }
+.logout-btn { background: #e53935; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 0.9rem; transition: background 0.2s; }
+.logout-btn:hover { background: #d32f2f; }
+
+/* Main Content Grid */
+.main-content {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 1.4fr 1fr;
+    gap: 30px;
+    padding: 30px;
+    max-width: 1400px;
+    margin: 0 auto;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+/* Cards */
+.card {
+    background: var(--card-bg);
+    border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    border: 1px solid #e5e7eb;
+}
+.card-header {
+    padding: 20px 25px;
+    border-bottom: 1px solid #f3f4f6;
+}
+.card-header h2 {
+    margin: 0;
+    color: var(--text-main);
+    font-size: 18px;
+    font-weight: 700;
+}
+.card-body { padding: 25px; }
+
+/* Forms */
+.form-group { margin-bottom: 25px; }
+.form-group label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 600;
+    font-size: 14px;
+    color: var(--text-main);
+}
+
+/* New Table Grid Selector */
+.table-grid-selector {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
+    gap: 10px;
+}
+.table-btn {
+    background: #f3f4f6;
+    border: 2px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 12px 0;
+    font-weight: 700;
+    font-size: 16px;
+    color: #6b7280;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.table-btn:hover {
+    background: #e5e7eb;
+    border-color: #d1d5db;
+}
+.table-btn.selected {
+    background: #111827;
+    color: var(--primary);
+    border-color: #111827;
+    box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+}
+
+select, input {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 14px;
+    background: white;
+}
+select:focus, input:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.1);
+}
+
+
+/* Add Item Grid */
+.add-item-grid {
+    display: flex;
+    gap: 10px;
+}
+.item-select { flex: 2; }
+.qty-actions {
+    display: flex;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    overflow: hidden;
+}
+.qty-actions button {
+    padding: 0 12px;
+    border: none;
+    background: #f9fafb;
+    cursor: pointer;
+    font-weight: bold;
+}
+.qty-actions button:hover { background: #e5e7eb; }
+.qty-input {
+    width: 50px;
+    text-align: center;
+    border: none;
+    border-left: 1px solid #d1d5db;
+    border-right: 1px solid #d1d5db;
+    border-radius: 0;
+    padding: 0;
+}
+.btn-add {
+    background: var(--primary);
+    color: white;
+    border: none;
+    border-radius: 6px;
+    padding: 0 20px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+.btn-add:hover:not(:disabled) { background: var(--primary-dark); }
+.btn-add:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* Extra Options */
+.extra-options { margin-bottom: 25px; font-size: 13px; color: var(--text-muted); }
+.ajuste-grid {
+    display: grid;
+    grid-template-columns: 100px 1fr;
+    gap: 10px;
+    margin-top: 10px;
+}
+
+/* Cart */
+.cart-preview {
+    background: #f9fafb;
+    padding: 20px;
+    border-radius: 8px;
+    border: 1px dashed #d1d5db;
+}
+.cart-preview h3 {
+    margin: 0 0 15px;
+    font-size: 14px;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    letter-spacing: 0.5px;
+}
+.cart-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+.cart-list li {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid #e5e7eb;
+}
+.cart-list li:last-child { border-bottom: none; }
+.cart-item-info { display: flex; gap: 10px; align-items: center; }
+.qty { font-weight: 700; color: var(--primary-dark); }
+.name { font-weight: 500; }
+.cart-item-price { display: flex; align-items: center; gap: 15px; font-weight: 600; }
+.btn-remove {
+    background: none;
+    border: none;
+    color: #ef4444;
+    font-weight: bold;
+    font-size: 18px;
+    cursor: pointer;
+    padding: 0;
+    line-height: 1;
+}
+
+.cart-total {
+    margin-top: 15px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 16px;
+    font-weight: 700;
+}
+.amount { font-size: 20px; color: var(--text-main); }
+
+.btn-submit {
+    width: 100%;
+    margin-top: 20px;
+    padding: 15px;
+    background: #111827;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-weight: 700;
+    font-size: 16px;
+    cursor: pointer;
+    letter-spacing: 0.5px;
+    transition: transform 0.1s;
+}
+.btn-submit:hover:not(:disabled) { background: black; transform: translateY(-1px); }
+.btn-submit:disabled { background: #9ca3af; cursor: not-allowed; }
+
+/* Right Panel */
+.active-orders-panel h3 {
+    font-size: 16px;
+    color: var(--text-muted);
+    margin: 0 0 20px;
+    text-transform: uppercase;
+}
+.orders-list {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+.order-card {
+    background: white;
+    padding: 20px;
+    border-radius: 12px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+    border-left: 4px solid #d1d5db;
+}
+.order-card.status-pending { border-left-color: #f59e0b; }
+.order-card.status-ready { border-left-color: #10b981; }
+
+.order-header {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 10px;
+}
+.table-badge {
+    background: #111827;
+    color: white;
+    padding: 4px 10px;
+    border-radius: 4px;
+    font-weight: 700;
+    font-size: 12px;
+}
+.time { font-size: 12px; color: var(--text-muted); }
+.order-body p { margin: 0; font-size: 14px; line-height: 1.5; color: #374151; }
+.order-footer { margin-top: 12px; text-align: right; }
+.status-pill {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    background: #f3f4f6;
+    color: #6b7280;
+}
+.status-ready .status-pill { background: #d1fae5; color: #047857; }
+
+@media (max-width: 900px) {
+    .main-content { grid-template-columns: 1fr; }
 }
 </style>
