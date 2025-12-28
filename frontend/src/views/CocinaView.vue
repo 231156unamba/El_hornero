@@ -71,7 +71,6 @@ const entregados = computed(() => pedidos.value.filter(p => p.estado === 'entreg
   <div class="cocina-page">
     <header class="topbar">
       <div class="logo">
-        <img src="/logo.png" alt="El Hornero">
         <h1>EL HORNERO</h1>
       </div>
       <div class="user-actions">
@@ -204,17 +203,15 @@ const entregados = computed(() => pedidos.value.filter(p => p.estado === 'entreg
 
 /* Header */
 .topbar {
-  background-color: #ff9d5c !important;
-  padding: 0 25px;
+  background-color: #111827 !important;
+  padding: 15px 30px;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
-  height: 70px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 .logo { display: flex; align-items: center; gap: 15px; }
-.logo img { height: 65px; /* Maximized for 70px header */ }
-.logo h1 { font-size: 24px; color: white; font-weight: 700; margin: 0; }
+.logo h1 { font-size: 24px; color: #f1af32; font-weight: 700; margin: 0; }
 .user-actions { display: flex; align-items: center; gap: 14px; }
 .user-profile { display: flex; align-items: center; gap: 8px; background: white; padding: 6px 14px; border-radius: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
 .user-avatar { width: 28px; height: 28px; border-radius: 50%; background: #f1af32; color: white; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 14px; }
