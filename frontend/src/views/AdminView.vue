@@ -244,7 +244,6 @@ const exportReportPDF = () => {
   <div class="admin-page">
     <header class="topbar">
       <div class="logo">
-        <img src="/logo.png" alt="El Hornero">
         <h1>EL HORNERO</h1>
       </div>
       <div class="user-actions">
@@ -581,12 +580,12 @@ const exportReportPDF = () => {
   min-height: 100vh;
 }
 .topbar {
-  background: white;
-  padding: 16px;
+  background-color: #111827 !important;
+  padding: 15px 30px;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 .logo {
   display: flex;
@@ -594,10 +593,10 @@ const exportReportPDF = () => {
   gap: 10px;
 }
 .logo img {
-  height: 40px;
+  height: 80px;
 }
 .logo h1 {
-  font-size: 20px;
+  font-size: 25px;
   color: #f1af32;
   font-weight: 700;
   margin: 0;

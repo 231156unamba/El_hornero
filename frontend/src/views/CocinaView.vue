@@ -39,13 +39,12 @@ const cambiarEstado = async (id, nuevoEstado) => {
       estado: nuevoEstado
     });
     
-    // Si cambia a preparado, mostrar aviso (como en el original)
     if (nuevoEstado === 'preparado') {
       const pedido = pedidos.value.find(p => p.id === id);
       mostrarAviso(`Pedido listo para la mesa ${pedido ? pedido.mesa : '?'}`);
     }
 
-    fetchPedidos(); // Refrescar inmediatamente
+    fetchPedidos();
   } catch (error) {
     console.error('Error actualizando estado:', error);
   }
@@ -58,166 +57,283 @@ const mostrarAviso = (mensaje) => {
   }, 5000);
 };
 
+const logout = () => {
+  localStorage.clear();
+  router.push('/login');
+};
+
 const pendientes = computed(() => pedidos.value.filter(p => p.estado === 'pedido'));
-const preparados = computed(() => pedidos.value.filter(p => p.estado === 'preparado')); // En el html dice 'preparado'
+const preparados = computed(() => pedidos.value.filter(p => p.estado === 'preparado'));
 const entregados = computed(() => pedidos.value.filter(p => p.estado === 'entregado'));
 </script>
 
 <template>
   <div class="cocina-page">
-    <div class="container">
-      <h1>Vista Cocina</h1>
-      
-      <div class="estados">
-        <!-- Columna Pendientes (Pedidos) -->
-        <div class="estado" id="estado-pedido">
-          <h2>Pedidos</h2>
-          <div v-for="p in pendientes" :key="p.id" class="tarjeta">
-            <div class="hora">{{ p.fecha ? p.fecha.split(' ')[1] : '' }}</div>
-            <div class="mesa">Mesa {{ p.mesa }}</div>
-            <div class="detalle">{{ p.detalle }}</div>
-            <button class="boton" @click="cambiarEstado(p.id, 'preparado')">Marcar como PREPARADO</button>
-          </div>
-        </div>
-
-        <!-- Columna Preparados -->
-        <div class="estado" id="estado-preparado">
-          <h2>Preparados</h2>
-          <div v-for="p in preparados" :key="p.id" class="tarjeta">
-             <div class="hora">{{ p.fecha ? p.fecha.split(' ')[1] : '' }}</div>
-             <div class="mesa">Mesa {{ p.mesa }}</div>
-             <div class="detalle">{{ p.detalle }}</div>
-             <button class="boton" @click="cambiarEstado(p.id, 'entregado')">Marcar como ENTREGADO</button>
-          </div>
-        </div>
-
-        <!-- Columna Entregados -->
-        <div class="estado" id="estado-entregado">
-          <h2>Entregados</h2>
-           <div v-for="p in entregados" :key="p.id" class="tarjeta">
-             <div class="hora">{{ p.fecha ? p.fecha.split(' ')[1] : '' }}</div>
-             <div class="mesa">Mesa {{ p.mesa }}</div>
-             <div class="detalle">{{ p.detalle }}</div>
-             <!-- No button here -->
-          </div>
-        </div>
+    <header class="topbar">
+      <div class="logo">
+        <h1>EL HORNERO</h1>
       </div>
-
-      <div id="avisos">
-        <div v-for="(aviso, idx) in avisos" :key="idx" class="aviso">{{ aviso }}</div>
+      <div class="user-actions">
+        <div class="user-profile">
+          <div class="user-avatar">C</div>
+          <span>Cocina</span>
+        </div>
+        <button class="logout-btn" @click="logout">
+          Cerrar Sesión
+        </button>
       </div>
-      
+    </header>
+
+    <main class="content-area">
+      <div class="kitchen-grid">
+        
+        <!-- Columna 1: Pendientes -->
+        <div class="kitchen-col">
+          <h2 class="col-title text-orange">Pendientes de Preparación</h2>
+          <div class="table-card">
+            <table class="kitchen-table">
+              <thead>
+                <tr>
+                  <th>Hora</th>
+                  <th>Mesa</th>
+                  <th>Detalle del Pedido</th>
+                  <th class="text-right">Acción</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-if="pendientes.length === 0">
+                  <td colspan="4" class="empty-cell">No hay pedidos pendientes</td>
+                </tr>
+                <tr v-for="p in pendientes" :key="p.id">
+                  <td class="time-cell">{{ p.fecha ? p.fecha.split(' ')[1].substring(0,5) : '' }}</td>
+                  <td class="table-cell font-bold">Mesa {{ p.mesa }}</td>
+                  <td class="detail-cell">{{ p.detalle }}</td>
+                  <td class="action-cell text-right">
+                    <button class="btn-action btn-orange" @click="cambiarEstado(p.id, 'preparado')">
+                      Listo
+                    </button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Columna 2: Listos -->
+        <div class="kitchen-col">
+          <h2 class="col-title text-green">Listos para Servir</h2>
+          <div class="table-card">
+            <table class="kitchen-table">
+              <thead>
+                <tr>
+                  <th>Hora</th>
+                  <th>Mesa</th>
+                  <th>Detalle</th>
+                  <th class="text-right">Estado</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-if="preparados.length === 0">
+                  <td colspan="4" class="empty-cell">Nada por servir</td>
+                </tr>
+                <tr v-for="p in preparados" :key="p.id">
+                  <td class="time-cell">{{ p.fecha ? p.fecha.split(' ')[1].substring(0,5) : '' }}</td>
+                  <td class="table-cell font-bold">Mesa {{ p.mesa }}</td>
+                  <td class="detail-cell">{{ p.detalle }}</td>
+                  <td class="action-cell text-right">
+                     <div class="btn-group">
+                        <span class="status-badge badge-ready">PREPARADO</span>
+                        <button class="btn-sm btn-success" @click="cambiarEstado(p.id, 'entregado')">✓</button>
+                     </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Columna 3: Historial -->
+        <div class="kitchen-col">
+          <h2 class="col-title text-gray">Historial Reciente</h2>
+          <div class="table-card">
+            <table class="kitchen-table">
+              <thead>
+                <tr>
+                  <th>Hora</th>
+                  <th>Mesa</th>
+                  <th>Detalle</th>
+                  <th class="text-right">Estado</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="p in entregados.slice().reverse().slice(0, 15)" :key="p.id">
+                  <td class="time-cell">{{ p.fecha ? p.fecha.split(' ')[1].substring(0,5) : '' }}</td>
+                  <td class="table-cell font-medium">Mesa {{ p.mesa }}</td>
+                  <td class="detail-cell text-muted">{{ p.detalle }}</td>
+                  <td class="action-cell text-right">
+                    <span class="status-label">ENTREGADO</span>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+    </main>
+
+    <!-- Notificaciones flotantes -->
+    <div class="toast-container">
+      <transition-group name="toast">
+        <div v-for="(aviso, idx) in avisos" :key="idx" class="toast">
+          🔔 {{ aviso }}
+        </div>
+      </transition-group>
     </div>
   </div>
 </template>
 
 <style scoped>
-/* Estilos migrados de cocina.html */
+/* Layout */
 .cocina-page {
   font-family: 'Segoe UI', Arial, sans-serif;
-  background: linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%);
+  background: #f8f9fa;
   min-height: 100vh;
-  margin: 0;
-  padding-top: 20px;
 }
-.container {
-  max-width: 1300px;
-  margin: 40px auto;
-  padding: 30px 20px;
-  background: #fff8e1;
-  border-radius: 18px;
-  box-shadow: 0 6px 32px rgba(255, 152, 0, 0.13);
-}
-h1 {
-  text-align: center;
-  margin-bottom: 35px;
-  color: #ff6f00;
-  letter-spacing: 2px;
-  font-size: 2.5em;
-}
-.estados {
+
+/* Header */
+.topbar {
+  background-color: #111827 !important;
+  padding: 15px 30px;
   display: flex;
-  gap: 30px;
-  justify-content: center;
-  flex-wrap: wrap; /* Added for responsiveness */
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
-.estado {
-  flex: 1;
-  min-width: 300px; /* Added min-width */
-  background: #fffde7;
-  border-radius: 14px;
-  padding: 18px 10px 30px 10px;
-  min-height: 350px;
-  box-shadow: 0 2px 12px rgba(255, 193, 7, 0.08);
+.logo { display: flex; align-items: center; gap: 15px; }
+.logo h1 { font-size: 24px; color: #f1af32; font-weight: 700; margin: 0; }
+.user-actions { display: flex; align-items: center; gap: 14px; }
+.user-profile { display: flex; align-items: center; gap: 8px; background: white; padding: 6px 14px; border-radius: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+.user-avatar { width: 28px; height: 28px; border-radius: 50%; background: #f1af32; color: white; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 14px; }
+.logout-btn { background: #e53935; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 0.9rem; }
+
+/* Main Content */
+.content-area {
+  padding: 30px;
+  max-width: 1600px;
+  margin: 0 auto;
 }
-.estado h2 {
-  text-align: center;
-  color: #ff9800;
-  font-size: 1.5em;
-  margin-bottom: 18px;
+
+.kitchen-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 25px;
+  align-items: start;
 }
-.tarjeta {
-  background: linear-gradient(90deg, #ffe0b2 0%, #fffde7 100%);
-  border: 2px solid #ffb300;
+
+.kitchen-col {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.col-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin: 0 0 5px 0;
+  padding-left: 5px;
+}
+.text-orange { color: #ef6c00; }
+.text-green { color: #2e7d32; }
+.text-gray { color: #424242; }
+
+/* Cards & Tables */
+.table-card {
+  background: white;
   border-radius: 12px;
-  margin: 18px 0;
-  padding: 22px 18px 18px 18px;
-  box-shadow: 0 4px 16px rgba(255, 167, 38, 0.13);
-  position: relative;
-  transition: transform 0.1s;
+  box-shadow: 0 2px 15px rgba(0,0,0,0.03);
+  overflow: hidden; /* For rounded corners */
+  border: 1px solid #f0f0f0;
 }
-.tarjeta:hover {
-  transform: scale(1.03);
-  box-shadow: 0 8px 32px rgba(255, 152, 0, 0.18);
+
+.kitchen-table {
+  width: 100%;
+  border-collapse: collapse;
 }
-.tarjeta .mesa {
-  font-weight: bold;
-  color: #e65100;
-  font-size: 1.2em;
-  margin-bottom: 8px;
+
+.kitchen-table th {
+  text-align: left;
+  padding: 18px 20px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #90a4ae;
+  background: #fff; /* White header as in image */
+  border-bottom: 2px solid #f5f5f5;
 }
-.tarjeta .detalle {
-  margin: 8px 0 12px 0;
-  color: #6d4c41;
-  font-size: 1.1em;
+
+.kitchen-table td {
+  padding: 18px 20px;
+  border-bottom: 1px solid #f9f9f9;
+  vertical-align: middle;
 }
-.tarjeta .hora {
-  position: absolute;
-  top: 12px;
-  right: 18px;
-  color: #ff9800;
-  font-size: 0.95em;
-}
-.boton {
-  background: linear-gradient(90deg, #ff9800 0%, #ffd54f 100%);
-  color: #fff;
+
+.kitchen-table tr:last-child td { border-bottom: none; }
+
+/* Cell Content */
+.time-cell { color: #90a4ae; font-size: 0.9rem; width: 60px; }
+.table-cell { color: #37474f; white-space: nowrap; }
+.detail-cell { color: #546e7a; font-size: 0.95rem; line-height: 1.4; font-style: italic; }
+.font-bold { font-weight: 700; }
+.font-medium { font-weight: 600; }
+.text-muted { color: #b0bec5; font-style: italic; }
+.text-right { text-align: right; }
+.empty-cell { text-align: center; color: #cfd8dc; font-style: italic; padding: 40px; }
+
+/* Actions */
+.btn-action {
+  padding: 6px 14px;
+  border-radius: 6px;
   border: none;
-  border-radius: 8px;
-  padding: 10px 22px;
+  font-weight: 600;
   cursor: pointer;
-  font-size: 1.1em;
-  font-weight: bold;
-  margin-top: 10px;
-  box-shadow: 0 2px 8px rgba(255, 152, 0, 0.13);
-  transition: background 0.2s;
-  width: 100%; /* Make full width for better touch */
+  font-size: 0.8rem;
+  transition: all 0.2s;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
 }
-.boton:disabled {
-  background: #ffe0b2;
+.btn-orange { background: #fff3e0; color: #ef6c00; }
+.btn-orange:hover { background: #ef6c00; color: white; }
+
+.btn-group {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+}
+.btn-sm { padding: 4px 8px; border-radius: 4px; border: none; cursor: pointer; font-weight: bold; }
+.btn-success { background: #e8f5e9; color: #2e7d32; }
+.btn-success:hover { background: #2e7d32; color: white; }
+
+.status-badge { font-size: 0.7rem; font-weight: 700; padding: 2px 6px; border-radius: 4px; }
+.badge-ready { background: #e8f5e9; color: #2e7d32; }
+
+.status-label {
+  background: #f5f5f5;
   color: #bdbdbd;
+  padding: 6px 12px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 700;
 }
-.aviso {
-  background: #fff8e1;
-  color: #ff6f00;
-  border-radius: 8px;
-  padding: 12px;
-  margin: 18px 0;
-  font-size: 1.1em;
-  text-align: center;
-  border: 2px solid #ffd54f;
-  box-shadow: 0 2px 8px rgba(255, 193, 7, 0.08);
+
+/* Toast */
+.toast-container {
+  position: fixed; bottom: 20px; right: 20px; display: flex; flex-direction: column; gap: 10px; z-index: 100;
 }
-@media (max-width: 900px) {
-  .estados { flex-direction: column; gap: 18px; }
+.toast {
+  background: #37474f; color: white; padding: 12px 24px; border-radius: 8px; font-weight: 600; box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+@media (max-width: 1200px) {
+  .kitchen-grid { grid-template-columns: 1fr; }
 }
 </style>
