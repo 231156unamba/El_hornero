@@ -14,6 +14,11 @@ const carrito = ref([]);
 const ajustePrecio = ref(null);
 const ajusteDescripcion = ref('');
 const usuarioNombre = ref('');
+const bebidaSeleccionada = ref('');
+const cantidadBebida = ref(1);
+
+const platosMenu = computed(() => menu.value.filter(p => (p.categoria || 'comida') === 'comida'));
+const bebidasMenu = computed(() => menu.value.filter(p => (p.categoria || 'comida') === 'bebidas'));
 
 // Verificar sesión
 onMounted(async () => {
@@ -59,6 +64,19 @@ const agregarTarjeta = () => {
   }
 };
 
+const agregarBebida = () => {
+  if (!bebidaSeleccionada.value) return;
+  const bebida = menu.value.find(p => p.id === bebidaSeleccionada.value);
+  if (bebida) {
+    carrito.value.push({
+      ...bebida,
+      cantidad: cantidadBebida.value
+    });
+    bebidaSeleccionada.value = '';
+    cantidadBebida.value = 1;
+  }
+};
+
 const eliminarDelCarrito = (index) => {
   carrito.value.splice(index, 1);
 };
@@ -83,7 +101,8 @@ const crearPedido = async () => {
   try {
     const response = await api.post('/pedidos', {
       mesa: mesaSeleccionada.value,
-      detalle: detalleStr
+      detalle: detalleStr,
+      usuario_id: Number(localStorage.getItem('userId')) || undefined
     });
 
     if (response.data.success) {

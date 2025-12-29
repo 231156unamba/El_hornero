@@ -1,9 +1,13 @@
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 import api from '../api';
 
 const menu = ref([]);
 const loading = ref(true);
+const selectedCat = ref('comida');
+const filteredMenu = computed(() => {
+  return menu.value.filter(m => (m.categoria || 'comida') === selectedCat.value);
+});
 
 const fetchMenu = async () => {
   try {
@@ -26,13 +30,17 @@ onMounted(() => {
     <div class="menu-header">
       <img src="/logo.png" alt="El Hornero" class="logo">
       <div class="title">Menú</div>
+      <div class="category-tabs">
+        <button :class="['cat-btn', selectedCat==='comida'?'active':'']" @click="selectedCat='comida'">Comidas</button>
+        <button :class="['cat-btn', selectedCat==='bebidas'?'active':'']" @click="selectedCat='bebidas'">Bebidas</button>
+      </div>
     </div>
     <div class="container">
       
       <div v-if="loading" style="text-align:center;">Cargando...</div>
 
       <div v-else class="menu-list">
-        <div v-for="plato in menu" :key="plato.id" class="menu-item">
+        <div v-for="plato in filteredMenu" :key="plato.id" class="menu-item">
           <div class="thumb">
             <img :src="plato.imagen" :alt="plato.nombre">
             <div class="price-badge">S/. {{ parseFloat(plato.precio).toFixed(2) }}</div>
@@ -61,12 +69,13 @@ onMounted(() => {
   align-items: center;
   justify-content: center;
   gap: 12px;
-  padding: 18px 16px;
+  padding: 10px 12px;
   background: linear-gradient(135deg, #ffcc80 0%, #ffb74d 40%, #ffa726 100%);
   border-bottom: 2px solid #e65100;
+  margin-bottom: 20px;
 }
 .menu-header .logo {
-  height: clamp(64px, 16vw, 112px);
+  height: clamp(48px, 12vw, 80px);
   width: auto;
   display: block;
   filter: drop-shadow(0 2px 6px rgba(0,0,0,0.15));
@@ -75,14 +84,39 @@ onMounted(() => {
   font-weight: 700;
   color: #e65100;
   letter-spacing: 0.5px;
-  font-size: clamp(20px, 6vw, 32px);
+  font-size: clamp(18px, 5vw, 26px);
   text-shadow: 0 1px 2px rgba(0,0,0,0.12);
+}
+.category-tabs {
+  margin-left: auto;
+  display: flex;
+  gap: 8px;
+}
+.cat-btn {
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: #fff3e0;
+  border: 1px solid #f3c49b;
+  color: #6b4e3d;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform .15s ease, background .15s ease, box-shadow .15s ease, color .15s ease, border-color .15s ease;
+}
+.cat-btn.active {
+  background: linear-gradient(135deg, #e65100 0%, #ff6f00 100%);
+  color: #fff;
+  border-color: #e65100;
+  transform: scale(1.06);
+  box-shadow: 0 3px 8px rgba(230, 81, 0, 0.35);
+}
+.cat-btn:active {
+  transform: scale(1.08);
 }
 
 .container { 
   max-width: 1100px;
   margin: 0 auto;
-  padding: 0 16px;
+  padding: 0 16px 24px;
 }
 
 .menu-list {
@@ -90,6 +124,7 @@ onMounted(() => {
   grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
   gap: 16px;
   align-items: start;
+  margin-top: 8px;
 }
 
 .menu-item {

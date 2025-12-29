@@ -18,7 +18,7 @@ class MenuController extends Controller
                     'precio' => (float) $item->precio,
                     'descripcion' => (string) $item->descripcion,
                     'imagen' => (string) $item->imagen,
-                    'categoria' => property_exists($item, 'categoria') ? (string) $item->categoria : null,
+                    'categoria' => (string) $item->categoria,
                 ];
             });
 
@@ -36,17 +36,16 @@ class MenuController extends Controller
             'precio' => 'required|numeric|min:0',
             'descripcion' => 'required|string',
             'imagen' => 'required|string',
-            'categoria' => 'nullable|string',
+            'categoria' => 'required|string|in:bebidas,comida',
         ]);
         $menu = new Menu();
         $menu->nombre = $request->nombre;
         $menu->precio = $request->precio;
         $menu->descripcion = $request->descripcion;
         $menu->imagen = $request->imagen;
-        if ($request->filled('categoria')) {
-            $menu->categoria = $request->categoria;
-        }
+        $menu->categoria = $request->categoria;
         $menu->save();
+
         return response()->json(['success' => true, 'id' => $menu->id]);
     }
 
@@ -57,7 +56,7 @@ class MenuController extends Controller
             'precio' => 'required|numeric|min:0',
             'descripcion' => 'required|string',
             'imagen' => 'required|string',
-            'categoria' => 'nullable|string',
+            'categoria' => 'required|string|in:bebidas,comida',
         ]);
         $menu = Menu::find($id);
         if (!$menu) {
@@ -67,9 +66,7 @@ class MenuController extends Controller
         $menu->precio = $request->precio;
         $menu->descripcion = $request->descripcion;
         $menu->imagen = $request->imagen;
-        if ($request->filled('categoria')) {
-            $menu->categoria = $request->categoria;
-        }
+        $menu->categoria = $request->categoria;
         $menu->save();
         return response()->json(['success' => true]);
     }
