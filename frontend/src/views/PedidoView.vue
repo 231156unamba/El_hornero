@@ -16,9 +16,16 @@ const ajusteDescripcion = ref('');
 const usuarioNombre = ref('');
 const bebidaSeleccionada = ref('');
 const cantidadBebida = ref(1);
+const porcionSeleccionada = ref('');
+const cantidadPorcion = ref(1);
 
 const platosMenu = computed(() => menu.value.filter(p => (p.categoria || 'comida') === 'comida'));
 const bebidasMenu = computed(() => menu.value.filter(p => (p.categoria || 'comida') === 'bebidas'));
+const porcionesMenu = computed(() => menu.value.filter(p => (p.categoria || 'comida') === 'porciones'));
+
+const mesasOcupadas = computed(() => {
+  return pedidos.value.filter(p => p.estado !== 'pagado' && p.estado !== 'cancelado').map(p => parseInt(p.mesa));
+});
 
 // Verificar sesión
 onMounted(async () => {
@@ -30,6 +37,8 @@ onMounted(async () => {
   
   await fetchMenu();
   fetchPedidos();
+  // Polling para mantener estado de mesas actualizado
+  setInterval(fetchPedidos, 5000);
 });
 
 const fetchMenu = async () => {
@@ -77,6 +86,19 @@ const agregarBebida = () => {
   }
 };
 
+const agregarPorcion = () => {
+  if (!porcionSeleccionada.value) return;
+  const porcion = menu.value.find(p => p.id === porcionSeleccionada.value);
+  if (porcion) {
+    carrito.value.push({
+      ...porcion,
+      cantidad: cantidadPorcion.value
+    });
+    porcionSeleccionada.value = '';
+    cantidadPorcion.value = 1;
+  }
+};
+
 const eliminarDelCarrito = (index) => {
   carrito.value.splice(index, 1);
 };
@@ -119,6 +141,17 @@ const crearPedido = async () => {
     console.error(error);
     alert('Error de conexión');
   }
+};
+
+const formatHora = (fechaStr) => {
+  if (!fechaStr) return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  
+  // Si la fecha viene de MySQL (YYYY-MM-DD HH:mm:ss), agregamos 'Z' para tratarla como UTC
+  // y que el navegador la convierta automáticamente a la hora local del usuario.
+  const isoStr = fechaStr.includes(' ') ? fechaStr.replace(' ', 'T') + 'Z' : fechaStr;
+  const date = new Date(isoStr);
+  
+  return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 };
 
 const logout = () => {
@@ -164,7 +197,10 @@ const logout = () => {
                   v-for="m in mesas" 
                   :key="m" 
                   class="table-btn"
-                  :class="{ selected: mesaSeleccionada === m }"
+                  :class="{ 
+                      selected: mesaSeleccionada === m,
+                      occupied: mesasOcupadas.includes(m)
+                  }"
                   @click="mesaSeleccionada = m"
                 >
                   {{ m }}
@@ -172,14 +208,14 @@ const logout = () => {
               </div>
             </div>
 
-            <!-- Item Selection -->
-            <div class="form-group">
-              <label>Agregar Productos</label>
+            <!-- Comida Section -->
+            <div class="product-box">
+              <label>Comida / Platos</label>
               <div class="add-item-grid">
                 <div class="select-wrapper item-select">
                   <select v-model="platoSeleccionado">
                     <option value="">-- Seleccionar Plato --</option>
-                    <option v-for="p in menu" :key="p.id" :value="p.id">
+                    <option v-for="p in platosMenu" :key="p.id" :value="p.id">
                         {{ p.nombre }} - S/ {{ parseFloat(p.precio).toFixed(2) }}
                     </option>
                   </select>
@@ -194,6 +230,59 @@ const logout = () => {
                 <button class="btn-add" @click="agregarTarjeta" :disabled="!platoSeleccionado">
                   Añadir
                 </button>
+              </div>
+            </div>
+
+            <!-- Parallel Sections: Porciones & Bebidas -->
+            <div class="side-by-side-grids">
+              <!-- Porciones Section -->
+              <div class="product-box porciones-box">
+                <label>Porciones / Extras</label>
+                <div class="add-item-grid">
+                  <div class="select-wrapper item-select">
+                    <select v-model="porcionSeleccionada">
+                      <option value="">-- Seleccionar --</option>
+                      <option v-for="p in porcionesMenu" :key="p.id" :value="p.id">
+                          {{ p.nombre }}
+                      </option>
+                    </select>
+                  </div>
+                  
+                  <div class="qty-actions">
+                    <button type="button" @click="cantidadPorcion = Math.max(1, cantidadPorcion - 1)">-</button>
+                    <input type="number" v-model.number="cantidadPorcion" min="1" class="qty-input">
+                    <button type="button" @click="cantidadPorcion++">+</button>
+                  </div>
+                  
+                  <button class="btn-add btn-portion" @click="agregarPorcion" :disabled="!porcionSeleccionada">
+                    Anadir
+                  </button>
+                </div>
+              </div>
+
+              <!-- Bebidas Section -->
+              <div class="product-box drinks-box">
+                <label>Bebidas / Refrescos</label>
+                <div class="add-item-grid">
+                  <div class="select-wrapper item-select">
+                    <select v-model="bebidaSeleccionada">
+                      <option value="">-- Seleccionar --</option>
+                      <option v-for="b in bebidasMenu" :key="b.id" :value="b.id">
+                          {{ b.nombre }}
+                      </option>
+                    </select>
+                  </div>
+                  
+                  <div class="qty-actions">
+                    <button type="button" @click="cantidadBebida = Math.max(1, cantidadBebida - 1)">-</button>
+                    <input type="number" v-model.number="cantidadBebida" min="1" class="qty-input">
+                    <button type="button" @click="cantidadBebida++">+</button>
+                  </div>
+                  
+                  <button class="btn-add btn-drink" @click="agregarBebida" :disabled="!bebidaSeleccionada">
+                    Añadir
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -243,22 +332,26 @@ const logout = () => {
 
       <!-- Right Panel: Active Orders List -->
       <section class="active-orders-panel">
-         <h3>📋 Pedidos en Curso</h3>
+         <h3>Pedidos en Curso</h3>
          <div class="orders-list">
              <div v-for="p in pedidos" 
                   :key="p.id" 
                   class="order-card"
-                  :class="p.estado === 'listo' ? 'status-ready' : 'status-pending'">
+                  :class="{ 
+                      'status-ready': p.estado === 'preparado', 
+                      'status-pending': p.estado === 'pedido',
+                      'status-delivered': p.estado === 'entregado'
+                  }">
                 <div class="order-header">
                     <span class="table-badge">Mesa {{ p.mesa }}</span>
-                    <span class="time">{{ new Date(p.created_at || Date.now()).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) }}</span>
+                    <span class="time">{{ formatHora(p.fecha) }}</span>
                 </div>
                 <div class="order-body">
                     <p>{{ p.detalle }}</p>
                 </div>
                 <div class="order-footer">
                     <span class="status-pill">
-                        {{ p.estado.toUpperCase() }}
+                        {{ p.estado === 'pedido' ? 'En Cocina' : (p.estado === 'preparado' ? '¡LISTO!' : p.estado.toUpperCase()) }}
                     </span>
                 </div>
              </div>
@@ -323,7 +416,7 @@ const logout = () => {
 .main-content {
     flex: 1;
     display: grid;
-    grid-template-columns: 1.4fr 1fr;
+    grid-template-columns: 1.7fr 0.7fr;
     gap: 30px;
     padding: 30px;
     max-width: 1400px;
@@ -335,7 +428,7 @@ const logout = () => {
 /* Cards */
 .card {
     background: var(--card-bg);
-    border-radius: 12px;
+    border-radius: 0;
     box-shadow: 0 1px 3px rgba(0,0,0,0.1);
     border: 1px solid #e5e7eb;
 }
@@ -388,6 +481,17 @@ const logout = () => {
     border-color: #111827;
     box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
 }
+.table-btn.occupied {
+    background: #fee2e2;
+    color: #b91c1c;
+    border-color: #fecaca;
+}
+.table-btn.occupied.selected {
+    background: #fee2e2;
+    color: #b91c1c;
+    border: 3px solid #000000;
+    transform: scale(1.05);
+}
 
 select, input {
     width: 100%;
@@ -403,47 +507,135 @@ select:focus, input:focus {
     box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.1);
 }
 
-
-/* Add Item Grid */
+/* Add Item Layout */
 .add-item-grid {
     display: flex;
+    align-items: center;
     gap: 10px;
+    width: 100%;
 }
-.item-select { flex: 2; }
+.item-select {
+    flex: 1;
+}
 .qty-actions {
     display: flex;
-    border: 1px solid #d1d5db;
-    border-radius: 6px;
-    overflow: hidden;
+    align-items: center;
+    gap: 4px;
 }
 .qty-actions button {
-    padding: 0 12px;
-    border: none;
-    background: #f9fafb;
-    cursor: pointer;
+    width: 32px;
+    height: 38px;
+    background: #f3f4f6;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
     font-weight: bold;
+    cursor: pointer;
 }
-.qty-actions button:hover { background: #e5e7eb; }
-.qty-input {
-    width: 50px;
+.qty-actions .qty-input {
+    width: 50px !important;
     text-align: center;
-    border: none;
-    border-left: 1px solid #d1d5db;
-    border-right: 1px solid #d1d5db;
-    border-radius: 0;
-    padding: 0;
+    padding: 8px 0;
 }
+
+
+/* Product Selection Boxes */
+.product-box {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 0;
+    padding: 20px;
+    margin-bottom: 20px;
+    transition: all 0.3s ease;
+}
+
+.side-by-side-grids {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+    margin-bottom: 20px;
+}
+.side-by-side-grids .product-box {
+    margin-bottom: 0px;
+    padding: 15px;
+}
+.side-by-side-grids .add-item-grid {
+    flex-wrap: wrap;
+    gap: 8px;
+}
+.side-by-side-grids .item-select {
+    width: 100%;
+    flex: none;
+}
+.side-by-side-grids .qty-actions {
+    flex: 1;
+}
+.side-by-side-grids .btn-add {
+    flex: 2;
+    padding: 0 10px;
+    font-size: 13px;
+}
+.product-box:hover {
+    border-color: var(--primary);
+    box-shadow: 0 4px 12px rgba(245, 158, 11, 0.05);
+}
+.product-box label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 15px;
+    font-weight: 700;
+    font-size: 15px;
+    color: var(--text-main);
+}
+.label-icon {
+    font-size: 1.2rem;
+}
+
+.drinks-box {
+    background: #fdfaf1; /* Matching porciones background */
+    border-color: #fde68a;
+}
+.drinks-box:hover {
+    border-color: #f59e0b;
+    box-shadow: 0 4px 12px rgba(245, 158, 11, 0.05);
+}
+
 .btn-add {
     background: var(--primary);
     color: white;
     border: none;
-    border-radius: 6px;
-    padding: 0 20px;
-    font-weight: 600;
+    border-radius: 10px;
+    padding: 0 25px;
+    font-weight: 700;
     cursor: pointer;
-    transition: background 0.2s;
+    transition: all 0.2s;
+    height: 42px;
 }
-.btn-add:hover:not(:disabled) { background: var(--primary-dark); }
+.btn-add:hover:not(:disabled) { 
+    background: var(--primary-dark);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(217, 119, 6, 0.3);
+}
+.btn-drink {
+    background: #f59e0b;
+}
+.btn-drink:hover:not(:disabled) {
+    background: #d97706;
+    box-shadow: 0 4px 8px rgba(217, 119, 6, 0.3);
+}
+.porciones-box {
+    background: #fdfaf1; /* Light yellow/orange tint */
+    border-color: #fde68a;
+}
+.porciones-box:hover {
+    border-color: #f59e0b;
+}
+.btn-portion {
+    background: #f59e0b;
+}
+.btn-portion:hover:not(:disabled) {
+    background: #d97706;
+}
 .btn-add:disabled { opacity: 0.5; cursor: not-allowed; }
 
 /* Extra Options */
@@ -459,7 +651,7 @@ select:focus, input:focus {
 .cart-preview {
     background: #f9fafb;
     padding: 20px;
-    border-radius: 8px;
+    border-radius: 0;
     border: 1px dashed #d1d5db;
 }
 .cart-preview h3 {
@@ -509,20 +701,26 @@ select:focus, input:focus {
 .amount { font-size: 20px; color: var(--text-main); }
 
 .btn-submit {
-    width: 100%;
-    margin-top: 20px;
-    padding: 15px;
+    display: block;
+    width: fit-content;
+    min-width: 200px;
+    margin: 20px 0 0 auto;
+    padding: 12px 30px;
     background: #111827;
     color: white;
     border: none;
     border-radius: 8px;
     font-weight: 700;
-    font-size: 16px;
+    font-size: 15px;
     cursor: pointer;
     letter-spacing: 0.5px;
-    transition: transform 0.1s;
+    transition: all 0.2s;
 }
-.btn-submit:hover:not(:disabled) { background: black; transform: translateY(-1px); }
+.btn-submit:hover:not(:disabled) { 
+    background: black; 
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
 .btn-submit:disabled { background: #9ca3af; cursor: not-allowed; }
 
 /* Right Panel */
@@ -540,12 +738,30 @@ select:focus, input:focus {
 .order-card {
     background: white;
     padding: 20px;
-    border-radius: 12px;
+    border-radius: 0;
     box-shadow: 0 1px 2px rgba(0,0,0,0.05);
-    border-left: 4px solid #d1d5db;
+    border-left: 6px solid #d1d5db;
+    transition: all 0.3s ease;
 }
-.order-card.status-pending { border-left-color: #f59e0b; }
-.order-card.status-ready { border-left-color: #10b981; }
+.order-card.status-pending { 
+    border-left-color: #f59e0b; 
+    background: #fffaf0; /* Soft orange background */
+}
+.order-card.status-ready { 
+    border-left-color: #10b981; 
+    background: #f0fdf4; /* Soft green background */
+    animation: pulse-green 2s infinite;
+}
+.order-card.status-delivered {
+    opacity: 0.7;
+    border-left-color: #6b7280;
+}
+
+@keyframes pulse-green {
+    0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4); }
+    70% { box-shadow: 0 0 0 10px rgba(16, 185, 129, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+}
 
 .order-header {
     display: flex;
@@ -565,15 +781,16 @@ select:focus, input:focus {
 .order-footer { margin-top: 12px; text-align: right; }
 .status-pill {
     display: inline-block;
-    padding: 4px 10px;
+    padding: 6px 12px;
     border-radius: 20px;
-    font-size: 10px;
-    font-weight: 700;
+    font-size: 11px;
+    font-weight: 800;
     text-transform: uppercase;
     background: #f3f4f6;
-    color: #6b7280;
+    color: #4b5563;
 }
-.status-ready .status-pill { background: #d1fae5; color: #047857; }
+.status-pending .status-pill { background: #ffedd5; color: #9a3412; }
+.status-ready .status-pill { background: #d1fae5; color: #065f46; }
 
 @media (max-width: 900px) {
     .main-content { grid-template-columns: 1fr; }
