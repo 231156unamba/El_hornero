@@ -53,8 +53,9 @@ const loadStats = async () => {
   loaded.value.stats = true;
 };
 const loadRecientes = async () => {
-  const r = await api.get('/admin/recientes');
-  recientes.value = r.data;
+  // Use /pedidos instead of /admin/recientes to get 'detalle' without touching backend code
+  const r = await api.get('/pedidos');
+  recientes.value = r.data.slice(0, 10);
   loaded.value.recientes = true;
 };
 const loadMenu = async () => {
@@ -207,6 +208,28 @@ const loadReport = async () => {
   }
 };
 
+
+const getStatusClass = (status) => {
+  const s = (status || '').toLowerCase();
+  if (s.includes('pendiente')) return 'status-pendiente';
+  if (s.includes('preparando')) return 'status-preparando';
+  if (s.includes('listo') || s.includes('entregado') || s.includes('completado')) return 'status-completado';
+  if (s.includes('cancelado')) return 'status-cancelado';
+  return 'status-default';
+};
+
+const formatDate = (dateString) => {
+  if (!dateString) return '';
+  const date = new Date(dateString.includes('Z') ? dateString : dateString.replace(' ', 'T') + 'Z');
+  return date.toLocaleDateString('es-PE', { day: 'numeric', month: 'numeric', year: 'numeric' });
+};
+
+const formatTime = (dateString) => {
+  if (!dateString) return '';
+  const date = new Date(dateString.includes('Z') ? dateString : dateString.replace(' ', 'T') + 'Z');
+  return date.toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit', hour12: true });
+};
+
 const exportReportPDF = () => {
   const w = window.open('', '_blank');
   const titleMap = {
@@ -286,43 +309,61 @@ const exportReportPDF = () => {
       </section>
       <div v-if="activeTab==='dashboard' && !loaded.stats" class="loading">Cargando...</div>
 
-      <section v-if="activeTab==='menu'" class="content-section">
+      <section v-if="activeTab==='menu'" class="content-section" style="padding: 20px 50px;">
         <h2 class="section-title">Gestión del Menú</h2>
-        <form class="add-form" @submit.prevent="submitMenu">
-          <div class="form-grid">
+        <form class="add-form" @submit.prevent="submitMenu" style="padding: 30px;">
+          <div class="form-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px 40px;">
             <div class="form-group">
-              <label>Nombre</label>
-              <input v-model="form.nombre" class="form-control" required>
+              <label style="font-weight: 600; color: #444; margin-bottom: 4px; display: block;">Nombre del Plato</label>
+              <input v-model="form.nombre" class="form-control" placeholder="Ej. Lomo Saltado" required>
             </div>
             <div class="form-group">
-              <label>Precio</label>
-              <input v-model="form.precio" type="number" step="0.01" class="form-control" required>
+              <label style="font-weight: 600; color: #444; margin-bottom: 4px; display: block;">Categoría</label>
+              <select v-model="form.categoria" class="form-control" required>
+                <option value="comida">Comida</option>
+                <option value="bebidas">Bebidas</option>
+              </select>
             </div>
-          <div class="form-group">
-            <label>Categoría</label>
-            <select v-model="form.categoria" class="form-control" required>
-              <option value="comida">Comida</option>
-              <option value="bebidas">Bebidas</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label>Imagen URL</label>
-            <input v-model="form.imagen" type="url" class="form-control" required>
-          </div>
-          <div class="form-group full-width">
-              <label>Descripción</label>
-              <textarea v-model="form.descripcion" class="form-control" rows="3" required></textarea>
+            <div class="form-group">
+              <label style="font-weight: 600; color: #444; margin-bottom: 4px; display: block;">Precio (S/.)</label>
+              <input v-model="form.precio" type="number" step="0.01" class="form-control" placeholder="0.00" required>
+            </div>
+            <div class="form-group">
+              <label style="font-weight: 600; color: #444; margin-bottom: 4px; display: block;">Imagen URL</label>
+              <input v-model="form.imagen" type="url" class="form-control" placeholder="https://..." required>
+            </div>
+            <div class="form-group" style="grid-column: span 2;">
+              <label style="font-weight: 600; color: #444; margin-bottom: 4px; display: block;">Descripción</label>
+              <textarea v-model="form.descripcion" class="form-control" rows="3" placeholder="Detalla los ingredientes y la presentación del plato..." required></textarea>
             </div>
           </div>
-          <div class="form-buttons">
-            <button type="submit" class="btn btn-primary">{{ editing ? 'Guardar' : 'Agregar Plato' }}</button>
-            <button type="button" class="btn btn-warning" @click="clearForm" v-if="editing">Cancelar Edición</button>
-            <button type="button" class="btn btn-danger" @click="clearForm">Limpiar</button>
+          <div class="form-buttons" style="margin-top: 30px; display: flex; gap: 15px; justify-content: flex-end;">
+            <button type="button" class="btn" style="background: #ef5350; color: white; border: none; font-weight: 600;" @click="clearForm">Limpiar</button>
+            <button type="button" class="btn btn-secondary" v-if="editing" @click="clearForm" style="background: #757575; color: white;">Cancelar</button>
+            <button type="submit" class="btn btn-solid-orange">{{ editing ? 'Guardar Cambios' : 'Agregar Plato' }}</button>
           </div>
         </form>
-        <h3 style="margin: 25px 0 15px; color: #f1af32; font-size: 1.3rem;">Platos del Menú</h3>
+        <h3 style="margin: 25px 0 15px; color: #f1af32; font-size: 1.3rem; border-bottom: 1px solid #eee; padding-bottom: 10px;">Comidas</h3>
         <div class="menu-list">
-          <div class="menu-item" v-for="item in menu" :key="item.id">
+          <div class="menu-item" v-for="item in menu.filter(i => (i.categoria || '').toLowerCase() === 'comida')" :key="item.id">
+            <img :src="item.imagen" alt="">
+            <div class="menu-content">
+              <div class="menu-header">
+                <div class="nombre">{{ item.nombre }}</div>
+                <div class="precio">S/. {{ item.precio }}</div>
+              </div>
+              <div class="descripcion">{{ item.descripcion }}</div>
+              <div class="menu-actions">
+                <button class="btn btn-success" @click="editItem(item)">Editar</button>
+                <button class="btn btn-danger" @click="deleteItem(item.id)">Eliminar</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <h3 style="margin: 40px 0 15px; color: #f1af32; font-size: 1.3rem; border-bottom: 1px solid #eee; padding-bottom: 10px;">Bebidas</h3>
+        <div class="menu-list">
+          <div class="menu-item" v-for="item in menu.filter(i => (i.categoria || '').toLowerCase() === 'bebidas')" :key="item.id">
             <img :src="item.imagen" alt="">
             <div class="menu-content">
               <div class="menu-header">
@@ -339,7 +380,7 @@ const exportReportPDF = () => {
         </div>
       </section>
 
-      <section v-if="activeTab==='dashboard'" class="content-section">
+      <section v-if="activeTab==='dashboard'" class="content-section" style="padding: 20px 40px;">
         <h2 class="section-title">Gráficas de Pedidos</h2>
         <div class="charts-grid">
           <div class="chart-card">
@@ -357,79 +398,78 @@ const exportReportPDF = () => {
         </div>
       </section>
 
-      <section v-if="activeTab==='dashboard' && loaded.recientes" class="content-section">
+      <section v-if="activeTab==='dashboard' && loaded.recientes" class="content-section" style="padding: 20px 40px;">
         <h2 class="section-title">Pedidos Recientes</h2>
-        <table class="orders-table">
+        <table class="custom-table">
           <thead>
             <tr>
-              <th>ID Pedido</th>
-              <th>Cliente</th>
-              <th>Fecha</th>
-              <th>Estado</th>
+              <th>ID</th>
+              <th>MESA</th>
+              <th>DETALLE PEDIDO</th>
+              <th>COSTO</th>
+              <th>FECHA / HORA</th>
+              <th style="text-align: right;">ESTADO</th>
             </tr>
           </thead>
           <tbody>
             <tr v-for="r in recientes" :key="r.id">
-              <td>{{ r.id }}</td>
-              <td>{{ r.cliente }}</td>
-              <td>{{ r.fecha }}</td>
-              <td>{{ r.estado }}</td>
+              <td style="color: #000">{{ r.id }}</td>
+              <td class="fw-bold" style="color: #000">Mesa {{ r.mesa }}</td>
+              <td style="font-size: 0.85rem; color: #000">{{ r.detalle }}</td>
+              <td style="color: #000">S/. {{ Number(r.costo || 0).toFixed(2) }}</td>
+              <td style="color: #000">{{ formatDate(r.fecha) }} {{ formatTime(r.fecha) }}</td>
+              <td style="text-align: right;">
+                <span :class="['status-badge', getStatusClass(r.estado)]">
+                  {{ r.estado }}
+                </span>
+              </td>
             </tr>
           </tbody>
         </table>
       </section>
       <div v-if="activeTab==='dashboard' && !loaded.recientes" class="loading">Cargando...</div>
 
-      <section v-if="activeTab==='pedidos' && loaded.pedidos" class="content-section">
+      <section v-if="activeTab==='pedidos' && loaded.pedidos" class="content-section" style="padding: 20px 40px;">
         <h2 class="section-title">Pedidos</h2>
-        <table class="orders-table">
+        <table class="custom-table">
           <thead>
             <tr>
               <th>ID</th>
-              <th>Mesa</th>
-              <th>Fecha</th>
-              <th>Estado</th>
-              <th>Costo</th>
-              <th>Detalle</th>
+              <th>MESA</th>
+              <th>DETALLE PEDIDO</th>
+              <th>COSTO</th>
+              <th>FECHA / HORA</th>
+              <th style="text-align: right;">ESTADO</th>
             </tr>
           </thead>
           <tbody>
             <tr v-for="p in pedidos" :key="p.id">
-              <td>{{ p.id }}</td>
-              <td>{{ p.mesa }}</td>
-              <td>{{ p.fecha }}</td>
-              <td>{{ p.estado }}</td>
-              <td>S/. {{ Number(p.costo || 0).toFixed(2) }}</td>
-              <td>{{ p.detalle }}</td>
+              <td style="color: #000">{{ p.id }}</td>
+              <td class="fw-bold" style="color: #000">Mesa {{ p.mesa }}</td>
+              <td style="font-size: 0.85rem; color: #000">{{ p.detalle }}</td>
+              <td style="color: #000">S/. {{ Number(p.costo || 0).toFixed(2) }}</td>
+              <td style="color: #000">{{ formatDate(p.fecha) }} {{ formatTime(p.fecha) }}</td>
+              <td style="text-align: right;">
+                <span :class="['status-badge', getStatusClass(p.estado)]">
+                  {{ p.estado }}
+                </span>
+              </td>
             </tr>
           </tbody>
         </table>
       </section>
       <div v-if="activeTab==='pedidos' && !loaded.pedidos" class="loading">Cargando...</div>
 
-      <section v-if="activeTab==='usuarios' && loaded.usuarios" class="content-section">
+      <section v-if="activeTab==='usuarios' && loaded.usuarios" class="content-section" style="padding: 20px 50px;">
         <h2 class="section-title">Usuarios</h2>
-        <form class="add-form" @submit.prevent="submitUsuario">
-          <div class="form-grid">
+        <form class="add-form" @submit.prevent="submitUsuario" style="padding: 30px;">
+          <div class="form-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px 40px;">
             <div class="form-group">
-              <label>Usuario</label>
-              <input v-model="userForm.usuario" class="form-control" required>
+              <label style="font-weight: 600; color: #444; margin-bottom: 4px; display: block;">Usuario</label>
+              <input v-model="userForm.usuario" class="form-control" placeholder="Ej. jperez" required>
             </div>
             <div class="form-group">
-              <label>Nombres</label>
-              <input v-model="userForm.nombres" class="form-control" required>
-            </div>
-            <div class="form-group">
-              <label>Apellidos</label>
-              <input v-model="userForm.apellidos" class="form-control" required>
-            </div>
-            <div class="form-group">
-              <label>Clave</label>
-              <input v-model="userForm.clave" type="password" class="form-control" :required="!userEditing">
-              <small style="color:#777;">No visible; úsalo solo para cambiarla</small>
-            </div>
-            <div class="form-group">
-              <label>Tipo</label>
+              <label style="font-weight: 600; color: #444; margin-bottom: 4px; display: block;">Tipo</label>
               <select v-model="userForm.tipo" class="form-control" required>
                 <option value="admin">Admin</option>
                 <option value="cocina">Cocina</option>
@@ -437,35 +477,50 @@ const exportReportPDF = () => {
                 <option value="caja">Caja</option>
               </select>
             </div>
+            <div class="form-group">
+              <label style="font-weight: 600; color: #444; margin-bottom: 4px; display: block;">Nombres</label>
+              <input v-model="userForm.nombres" class="form-control" placeholder="Ej. Juan" required>
+            </div>
+            <div class="form-group">
+              <label style="font-weight: 600; color: #444; margin-bottom: 4px; display: block;">Apellidos</label>
+              <input v-model="userForm.apellidos" class="form-control" placeholder="Ej. Perez" required>
+            </div>
+            <div class="form-group">
+              <label style="font-weight: 600; color: #444; margin-bottom: 4px; display: block;">Clave</label>
+              <input v-model="userForm.clave" type="password" class="form-control" :required="!userEditing" placeholder="******">
+              <small style="color:#777; margin-top: 4px; display: block;" v-if="userEditing">Dejar en blanco para mantener actual</small>
+            </div>
           </div>
-          <div class="form-buttons">
-            <button type="submit" class="btn btn-primary">{{ userEditing ? 'Guardar' : 'Crear Usuario' }}</button>
-            <button type="button" class="btn btn-warning" @click="clearUsuarioForm" v-if="userEditing">Cancelar Edición</button>
-            <button type="button" class="btn btn-danger" @click="clearUsuarioForm">Limpiar</button>
+          <div class="form-buttons" style="margin-top: 30px; display: flex; gap: 15px; justify-content: flex-end;">
+            <button type="button" class="btn" style="background: #ef5350; color: white; border: none; font-weight: 600;" @click="clearUsuarioForm">Limpiar</button>
+            <button type="button" class="btn btn-secondary" v-if="userEditing" @click="clearUsuarioForm" style="background: #757575; color: white;">Cancelar</button>
+            <button type="submit" class="btn btn-solid-orange">{{ userEditing ? 'Guardar Cambios' : 'Crear Usuario' }}</button>
           </div>
         </form>
-        <table class="orders-table">
+        <table class="custom-table" style="margin-top: 20px;">
           <thead>
             <tr>
               <th>ID</th>
-              <th>Usuario</th>
-              <th>Nombres</th>
-              <th>Apellidos</th>
-              <th>Tipo</th>
-              <th>Acciones</th>
+              <th>USUARIO</th>
+              <th>NOMBRES</th>
+              <th>APELLIDOS</th>
+              <th>TIPO</th>
+              <th style="text-align: center;">ACCIONES</th>
             </tr>
           </thead>
           <tbody>
             <tr v-for="c in usuarios" :key="c.id">
-              <td>{{ c.id }}</td>
-              <td>{{ c.usuario }}</td>
-              <td>{{ c.nombres }}</td>
-              <td>{{ c.apellidos }}</td>
-              <td>{{ c.tipo }}</td>
+              <td style="color: #000">{{ c.id }}</td>
+              <td class="fw-bold" style="color: #000">{{ c.usuario }}</td>
+              <td style="color: #000">{{ c.nombres }}</td>
+              <td style="color: #000">{{ c.apellidos }}</td>
+              <td><span :class="['role-badge', c.tipo]">{{ c.tipo }}</span></td>
               <td>
-                <button class="btn btn-success" @click="editUsuario(c)">Editar</button>
-                <button class="btn btn-danger" v-if="c.id !== 1" @click="deleteUsuario(c.id)">Eliminar</button>
-                <button class="btn btn-danger" v-else disabled>Eliminar</button>
+                <div class="menu-actions" style="justify-content: center;">
+                  <button class="btn btn-success" @click="editUsuario(c)">Editar</button>
+                  <button class="btn btn-danger" v-if="c.id !== 1" @click="deleteUsuario(c.id)">Eliminar</button>
+                  <button class="btn btn-danger" v-else disabled style="opacity: 0.5; cursor: not-allowed;">Eliminar</button>
+                </div>
               </td>
             </tr>
           </tbody>
@@ -473,7 +528,7 @@ const exportReportPDF = () => {
       </section>
       <div v-if="activeTab==='usuarios' && !loaded.usuarios" class="loading">Cargando...</div>
 
-      <section v-if="activeTab==='reportes'" class="content-section">
+      <section v-if="activeTab==='reportes'" class="content-section" style="padding: 20px 40px;">
         <h2 class="section-title">Reportes</h2>
         <div class="report-controls">
           <div class="control">
@@ -513,57 +568,61 @@ const exportReportPDF = () => {
           </div>
           <div class="control">
             <label>&nbsp;</label>
-            <button class="btn btn-primary" @click="exportReportPDF">Exportar PDF</button>
+            <button class="btn btn-solid-orange" @click="exportReportPDF">Exportar PDF</button>
           </div>
         </div>
         <div class="report-preview">
-          <table class="orders-table" v-if="reportType==='pedidos'||reportType==='pedidos_mesero'">
+          <table class="custom-table" v-if="reportType==='pedidos'||reportType==='pedidos_mesero'">
             <thead>
               <tr>
                 <th>ID</th>
-                <th>Mesa</th>
-                <th>Mesero</th>
-                <th>Fecha</th>
-                <th>Estado</th>
-                <th>Costo</th>
-                <th>Detalle</th>
+                <th>MESA</th>
+                <th>MESERO</th>
+                <th>DETALLE</th>
+                <th>COSTO</th>
+                <th>FECHA / HORA</th>
+                <th style="text-align: right;">ESTADO</th>
               </tr>
             </thead>
             <tbody>
               <tr v-for="p in reportData" :key="p.id">
-                <td>{{ p.id }}</td>
-                <td>{{ p.mesa }}</td>
-                <td>{{ p.mesero || '-' }}</td>
-                <td>{{ p.fecha }}</td>
-                <td>{{ p.estado }}</td>
-                <td>S/. {{ Number(p.costo || 0).toFixed(2) }}</td>
-                <td>{{ p.detalle }}</td>
+                <td style="color: #000">{{ p.id }}</td>
+                <td class="fw-bold" style="color: #000">Mesa {{ p.mesa }}</td>
+                <td style="color: #000">{{ p.mesero || '-' }}</td>
+                <td style="font-size: 0.85rem; color: #000">{{ p.detalle }}</td>
+                <td style="color: #000">S/. {{ Number(p.costo || 0).toFixed(2) }}</td>
+                <td style="color: #000">{{ formatDate(p.fecha) }} {{ formatTime(p.fecha) }}</td>
+                <td style="text-align: right;">
+                    <span :class="['status-badge', getStatusClass(p.estado)]">
+                    {{ p.estado }}
+                  </span>
+                </td>
               </tr>
             </tbody>
           </table>
-          <table class="orders-table" v-if="reportType==='recibos_entregados'">
+          <table class="custom-table" v-if="reportType==='recibos_entregados'">
             <thead>
               <tr>
                 <th>ID</th>
-                <th>Número</th>
-                <th>Fecha</th>
-                <th>Tipo</th>
-                <th>Total</th>
-                <th>Subtotal</th>
+                <th>NÚMERO</th>
+                <th>TIPO</th>
+                <th>TOTAL</th>
+                <th>SUBTOTAL</th>
                 <th>IGV</th>
-                <th>Venta</th>
+                <th>FECHA / HORA</th>
+                <th>VENTA ID</th>
               </tr>
             </thead>
             <tbody>
               <tr v-for="r in reportData" :key="r.id">
-                <td>{{ r.id }}</td>
-                <td>{{ r.numero }}</td>
-                <td>{{ r.fecha }}</td>
-                <td>{{ r.tipo }}</td>
-                <td>S/. {{ Number(r.total || 0).toFixed(2) }}</td>
-                <td>S/. {{ Number(r.subtotal || 0).toFixed(2) }}</td>
-                <td>S/. {{ Number(r.igv || 0).toFixed(2) }}</td>
-                <td>{{ r.venta_id || '-' }}</td>
+                <td style="color: #000">{{ r.id }}</td>
+                <td class="fw-bold" style="color: #000">{{ r.numero }}</td>
+                <td style="color: #000">{{ r.tipo }}</td>
+                <td style="color: #000">S/. {{ Number(r.total || 0).toFixed(2) }}</td>
+                <td style="color: #000">S/. {{ Number(r.subtotal || 0).toFixed(2) }}</td>
+                <td style="color: #000">S/. {{ Number(r.igv || 0).toFixed(2) }}</td>
+                <td style="color: #000">{{ formatDate(r.fecha) }} {{ formatTime(r.fecha) }}</td>
+                <td style="color: #000">{{ r.venta_id || '-' }}</td>
               </tr>
             </tbody>
           </table>
@@ -724,26 +783,116 @@ const exportReportPDF = () => {
 .form-control { padding: 10px 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 1rem; background: white; }
 .form-buttons { display: flex; gap: 12px; margin-top: 8px; }
 .btn { padding: 10px 16px; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; }
-.btn-primary { background: linear-gradient(135deg, #f1af32 0%, #ff6d2f 100%); color: white; }
+.btn-primary { background: #f1af32; color: white; border: none; }
+.btn-primary:hover { background: #e6a42b; }
 .btn-success { background: #4caf50; color: white; }
 .btn-danger { background: #e53935; color: white; }
 .btn-warning { background: #ff9800; color: white; }
-.menu-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
+.menu-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; }
 .menu-item { background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 3px 10px rgba(0,0,0,0.08); border: 1px solid #eee; }
-.menu-item img { width: 100%; height: 160px; object-fit: cover; display: block; background: #f5f5f5; }
+.menu-item img { width: 100%; height: 150px; object-fit: cover; display: block; background: #f5f5f5; }
 .menu-content { padding: 12px; }
 .menu-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; }
 .nombre { font-weight: 700; color: #f1af32; }
-.precio { background: linear-gradient(135deg, #4caf50 0%, #66bb6a 100%); color: white; padding: 5px 10px; border-radius: 20px; font-weight: 700; font-size: 0.95rem; white-space: nowrap; }
+.precio { background: #ef6c00; color: white; padding: 5px 10px; border-radius: 20px; font-weight: 700; font-size: 0.95rem; white-space: nowrap; }
 .descripcion { color: #6e6e6e; margin-bottom: 10px; font-size: 0.95rem; line-height: 1.45; min-height: 60px; }
 .menu-actions { display: flex; gap: 10px; }
+.menu-actions .btn-success { background: #e0f2f1; color: #00695c; transition: background 0.2s; }
+.menu-actions .btn-success:hover { background: #b2dfdb; color: #004d40; }
+.menu-actions .btn-danger { background: #ffebee; color: #c62828; transition: background 0.2s; }
+.menu-actions .btn-danger:hover { background: #ffcdd2; color: #b71c1c; }
+.role-badge { padding: 4px 8px; border-radius: 4px; font-size: 0.8rem; font-weight: 700; text-transform: uppercase; }
+.role-badge.admin { background: #e3f2fd; color: #1565c0; }
+.role-badge.cocina { background: #fff3e0; color: #ef6c00; }
+.role-badge.pedido { background: #e8f5e9; color: #2e7d32; }
+.role-badge.caja { background: #e0f7fa; color: #006064; }
 .orders-table { width: 100%; border-collapse: collapse; }
 .orders-table th { background: #f8f9fa; color: #2b2b2b; padding: 12px; text-align: left; font-weight: 600; border-bottom: 2px solid #e0e0e0; }
 .orders-table td { padding: 12px; border-bottom: 1px solid #eee; }
 @media (max-width: 768px) { .form-grid { grid-template-columns: 1fr; } }
-.report-controls { display: grid; grid-template-columns: repeat(6, minmax(120px, 1fr)); gap: 10px; margin-bottom: 12px; }
-.report-controls .control { display: flex; flex-direction: column; gap: 6px; }
+.report-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 20px;
+  align-items: flex-end;
+  background: #f5f7fa; /* Professional Light Gray-Blue */
+  padding: 20px;
+  border: 1px solid #e0e0e0; /* Matches table border */
+}
+
+.report-controls .control {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 140px;
+  flex: 1;
+}
+
+/* Make the button control not stretch infinitely */
+.report-controls .control:last-child {
+  flex: 0 0 auto;
+}
+
+.btn-solid-orange {
+  background: #ef6c00; /* Solid Dark Orange */
+  color: white;
+  transition: background 0.2s;
+}
+.btn-solid-orange:hover {
+  background: #e65100;
+}
+
 .report-preview { margin-top: 12px; }
-@media (max-width: 900px) { .report-controls { grid-template-columns: repeat(2, 1fr); } }
-@media (max-width: 480px) { .report-controls { grid-template-columns: 1fr; } }
+@media (max-width: 900px) { .report-controls .control { min-width: 45%; } }
+@media (max-width: 480px) { .report-controls .control { min-width: 100%; } }
+
+/* Custom Table Design matching User Image & Cocina Style (Squared/Grid) */
+.custom-table {
+  width: 100%;
+  border-collapse: collapse;
+  border: 1px solid #e0e0e0; /* Outer border */
+}
+.custom-table th {
+  background-color: #f1af32;
+  color: white;
+  text-transform: uppercase;
+  font-size: 0.8rem;
+  font-weight: 700;
+  padding: 8px 12px;
+  text-align: left;
+  border: 1px solid #e6a830; /* Header grid border */
+}
+.custom-table td {
+  padding: 8px 12px;
+  border: 1px solid #e0e0e0; /* Cell grid border */
+  font-size: 0.9rem;
+  vertical-align: middle;
+}
+.custom-table tr:hover {
+  background-color: #fffdf5;
+}
+.fw-bold { font-weight: 700; color: #333; }
+.text-muted { color: #666; }
+
+.status-badge {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 0; /* Squared badges */
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  min-width: 80px;
+  text-align: center;
+}
+/* Alternate Theme for Pedidos Tab */
+.theme-teal th {
+  background-color: #00897b;
+  border-color: #00695c;
+}
+.status-pendiente { background-color: #fff3e0; color: #ff9800; }
+.status-preparando { background-color: #e3f2fd; color: #1976d2; }
+.status-completado { background-color: #e8f5e9; color: #388e3c; }
+.status-cancelado { background-color: #ffebee; color: #d32f2f; }
+.status-default { background-color: #f5f5f5; color: #616161; }
 </style>
