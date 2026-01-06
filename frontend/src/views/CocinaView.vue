@@ -95,9 +95,9 @@ const entregados = computed(() => pedidos.value.filter(p => p.estado === 'entreg
       <div class="main-panel">
         <div class="kitchen-grid">
           
-          <!-- Columna 1: Pendientes -->
+          <!-- Columna 1: En Cocina -->
           <div class="kitchen-col">
-            <h2 class="col-title text-orange-main">Pendientes de Preparación</h2>
+            <h2 class="col-title text-orange-main">En Cocina</h2>
             <div class="table-card">
               <table class="kitchen-table">
                 <thead>
@@ -115,10 +115,13 @@ const entregados = computed(() => pedidos.value.filter(p => p.estado === 'entreg
                   <tr v-for="p in pendientes" :key="p.id" class="row-pending">
                     <td class="time-cell">{{ formatHora(p.fecha) }}</td>
                     <td class="table-cell-highlight">Mesa {{ p.mesa }}</td>
-                    <td class="detail-cell">{{ p.detalle }}</td>
+                    <td class="detail-cell">
+                      {{ p.detalle }}
+                      <div style="margin-top:4px; color:#64748b; font-size:12px;">Tipo: {{ p.tipo_servicio === 'llevar' ? 'Para llevar' : 'Local' }}</div>
+                    </td>
                     <td class="action-cell text-right">
                       <button class="btn-action btn-orange" @click="cambiarEstado(p.id, 'preparado')">
-                        Listo
+                        Preparado
                       </button>
                     </td>
                   </tr>
@@ -127,9 +130,9 @@ const entregados = computed(() => pedidos.value.filter(p => p.estado === 'entreg
             </div>
           </div>
   
-          <!-- Columna 2: Listos -->
+          <!-- Columna 2: Preparado -->
           <div class="kitchen-col">
-            <h2 class="col-title text-green-main">Listos para Servir</h2>
+            <h2 class="col-title text-green-main">Preparado</h2>
             <div class="table-card">
               <table class="kitchen-table">
                 <thead>
@@ -147,7 +150,10 @@ const entregados = computed(() => pedidos.value.filter(p => p.estado === 'entreg
                   <tr v-for="p in preparados" :key="p.id" class="row-ready">
                     <td class="time-cell">{{ formatHora(p.fecha) }}</td>
                     <td class="table-cell-highlight">Mesa {{ p.mesa }}</td>
-                    <td class="detail-cell">{{ p.detalle }}</td>
+                    <td class="detail-cell">
+                      {{ p.detalle }}
+                      <div style="margin-top:4px; color:#64748b; font-size:12px;">Tipo: {{ p.tipo_servicio === 'llevar' ? 'Para llevar' : 'Local' }}</div>
+                    </td>
                     <td class="action-cell text-right">
                        <div class="btn-group">
                           <span class="status-badge badge-ready">PREPARADO</span>
@@ -160,9 +166,9 @@ const entregados = computed(() => pedidos.value.filter(p => p.estado === 'entreg
             </div>
           </div>
   
-          <!-- Columna 3: Historial -->
+          <!-- Columna 3: Entregado -->
           <div class="kitchen-col">
-            <h2 class="col-title text-gray-main">Historial Reciente</h2>
+            <h2 class="col-title text-gray-main">Entregado</h2>
             <div class="table-card">
               <table class="kitchen-table">
                 <thead>
@@ -177,7 +183,10 @@ const entregados = computed(() => pedidos.value.filter(p => p.estado === 'entreg
                   <tr v-for="p in entregados.slice().reverse().slice(0, 15)" :key="p.id" class="row-delivered">
                     <td class="time-cell">{{ formatHora(p.fecha) }}</td>
                     <td class="table-cell font-medium">Mesa {{ p.mesa }}</td>
-                    <td class="detail-cell text-muted">{{ p.detalle }}</td>
+                    <td class="detail-cell text-muted">
+                      {{ p.detalle }}
+                      <div style="margin-top:4px; color:#94a3b8; font-size:12px;">Tipo: {{ p.tipo_servicio === 'llevar' ? 'Para llevar' : 'Local' }}</div>
+                    </td>
                     <td class="action-cell text-right">
                       <span class="status-label">ENTREGADO</span>
                     </td>

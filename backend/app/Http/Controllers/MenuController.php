@@ -17,7 +17,7 @@ class MenuController extends Controller
                     'nombre' => (string) $item->nombre,
                     'precio' => (float) $item->precio,
                     'descripcion' => (string) $item->descripcion,
-                    'imagen' => (string) $item->imagen,
+                    'imagen' => $item->imagen ? (string) url($item->imagen) : null,
                     'categoria' => (string) $item->categoria,
                 ];
             });
@@ -35,14 +35,24 @@ class MenuController extends Controller
             'nombre' => 'required|string',
             'precio' => 'required|numeric|min:0',
             'descripcion' => 'required|string',
-            'imagen' => 'required|string',
+            'imagen' => 'required|file|mimes:jpeg,png,jpg,gif,webp|max:4096',
             'categoria' => 'required|string|in:bebidas,comida',
         ]);
         $menu = new Menu();
         $menu->nombre = $request->nombre;
         $menu->precio = $request->precio;
         $menu->descripcion = $request->descripcion;
-        $menu->imagen = $request->imagen;
+        if ($request->hasFile('imagen')) {
+            $file = $request->file('imagen');
+            $dir = public_path('images/menu');
+            if (!is_dir($dir)) {
+                mkdir($dir, 0777, true);
+            }
+            $original = $file->getClientOriginalName();
+            $safeName = time() . '_' . preg_replace('/[^a-zA-Z0-9_\\.-]/', '_', $original);
+            $file->move($dir, $safeName);
+            $menu->imagen = '/images/menu/' . $safeName;
+        }
         $menu->categoria = $request->categoria;
         $menu->save();
 
@@ -55,7 +65,6 @@ class MenuController extends Controller
             'nombre' => 'required|string',
             'precio' => 'required|numeric|min:0',
             'descripcion' => 'required|string',
-            'imagen' => 'required|string',
             'categoria' => 'required|string|in:bebidas,comida',
         ]);
         $menu = Menu::find($id);
@@ -65,7 +74,17 @@ class MenuController extends Controller
         $menu->nombre = $request->nombre;
         $menu->precio = $request->precio;
         $menu->descripcion = $request->descripcion;
-        $menu->imagen = $request->imagen;
+        if ($request->hasFile('imagen')) {
+            $file = $request->file('imagen');
+            $dir = public_path('images/menu');
+            if (!is_dir($dir)) {
+                mkdir($dir, 0777, true);
+            }
+            $original = $file->getClientOriginalName();
+            $safeName = time() . '_' . preg_replace('/[^a-zA-Z0-9_\\.-]/', '_', $original);
+            $file->move($dir, $safeName);
+            $menu->imagen = '/images/menu/' . $safeName;
+        }
         $menu->categoria = $request->categoria;
         $menu->save();
         return response()->json(['success' => true]);

@@ -16,12 +16,12 @@ const ajusteDescripcion = ref('');
 const usuarioNombre = ref('');
 const bebidaSeleccionada = ref('');
 const cantidadBebida = ref(1);
-const porcionSeleccionada = ref('');
-const cantidadPorcion = ref(1);
+// Removido: porciones/extras
+const tipoServicio = ref('local');
 
 const platosMenu = computed(() => menu.value.filter(p => (p.categoria || 'comida') === 'comida'));
 const bebidasMenu = computed(() => menu.value.filter(p => (p.categoria || 'comida') === 'bebidas'));
-const porcionesMenu = computed(() => menu.value.filter(p => (p.categoria || 'comida') === 'porciones'));
+// Removido: porciones/extras
 
 const mesasOcupadas = computed(() => {
   return pedidos.value.filter(p => p.estado !== 'pagado' && p.estado !== 'cancelado').map(p => parseInt(p.mesa));
@@ -29,7 +29,7 @@ const mesasOcupadas = computed(() => {
 
 // Verificar sesión
 onMounted(async () => {
-  const rol = localStorage.getItem('rol');
+  // const rol = localStorage.getItem('rol');
   // Validation logic (commented for flexibility during dev)
   // if (rol !== 'pedido') { router.push('/login'); return; }
   
@@ -86,18 +86,7 @@ const agregarBebida = () => {
   }
 };
 
-const agregarPorcion = () => {
-  if (!porcionSeleccionada.value) return;
-  const porcion = menu.value.find(p => p.id === porcionSeleccionada.value);
-  if (porcion) {
-    carrito.value.push({
-      ...porcion,
-      cantidad: cantidadPorcion.value
-    });
-    porcionSeleccionada.value = '';
-    cantidadPorcion.value = 1;
-  }
-};
+// Removido: porciones/extras
 
 const eliminarDelCarrito = (index) => {
   carrito.value.splice(index, 1);
@@ -124,7 +113,8 @@ const crearPedido = async () => {
     const response = await api.post('/pedidos', {
       mesa: mesaSeleccionada.value,
       detalle: detalleStr,
-      usuario_id: Number(localStorage.getItem('userId')) || undefined
+      usuario_id: Number(localStorage.getItem('userId')) || undefined,
+      tipo_servicio: tipoServicio.value
     });
 
     if (response.data.success) {
@@ -207,6 +197,14 @@ const logout = () => {
                 </button>
               </div>
             </div>
+            
+            <div class="form-group">
+              <label>Tipo de servicio</label>
+              <select v-model="tipoServicio">
+                <option value="local">Local</option>
+                <option value="llevar">Para llevar</option>
+              </select>
+            </div>
 
             <!-- Comida Section -->
             <div class="product-box">
@@ -234,34 +232,8 @@ const logout = () => {
             </div>
 
             <!-- Parallel Sections: Porciones & Bebidas -->
-            <div class="side-by-side-grids">
-              <!-- Porciones Section -->
-              <div class="product-box porciones-box">
-                <label>Porciones / Extras</label>
-                <div class="add-item-grid">
-                  <div class="select-wrapper item-select">
-                    <select v-model="porcionSeleccionada">
-                      <option value="">-- Seleccionar --</option>
-                      <option v-for="p in porcionesMenu" :key="p.id" :value="p.id">
-                          {{ p.nombre }}
-                      </option>
-                    </select>
-                  </div>
-                  
-                  <div class="qty-actions">
-                    <button type="button" @click="cantidadPorcion = Math.max(1, cantidadPorcion - 1)">-</button>
-                    <input type="number" v-model.number="cantidadPorcion" min="1" class="qty-input">
-                    <button type="button" @click="cantidadPorcion++">+</button>
-                  </div>
-                  
-                  <button class="btn-add btn-portion" @click="agregarPorcion" :disabled="!porcionSeleccionada">
-                    Anadir
-                  </button>
-                </div>
-              </div>
-
-              <!-- Bebidas Section -->
-              <div class="product-box drinks-box">
+            <!-- Bebidas Section -->
+            <div class="product-box drinks-box">
                 <label>Bebidas / Refrescos</label>
                 <div class="add-item-grid">
                   <div class="select-wrapper item-select">
@@ -283,7 +255,6 @@ const logout = () => {
                     Añadir
                   </button>
                 </div>
-              </div>
             </div>
 
             <!-- Extras -->
@@ -348,8 +319,10 @@ const logout = () => {
                 </div>
                 <div class="order-body">
                     <p>{{ p.detalle }}</p>
+                    <p style="margin-top:6px; color:#6b7280;">Tipo: {{ p.tipo_servicio === 'llevar' ? 'Para llevar' : 'Local' }}</p>
                 </div>
                 <div class="order-footer">
+                    <span style="float:left; font-weight:700; color:#b45309;">Costo: S/ {{ Number(p.costo || 0).toFixed(2) }}</span>
                     <span class="status-pill">
                         {{ p.estado === 'pedido' ? 'En Cocina' : (p.estado === 'preparado' ? '¡LISTO!' : p.estado.toUpperCase()) }}
                     </span>
@@ -622,19 +595,6 @@ select:focus, input:focus {
 .btn-drink:hover:not(:disabled) {
     background: #d97706;
     box-shadow: 0 4px 8px rgba(217, 119, 6, 0.3);
-}
-.porciones-box {
-    background: #fdfaf1; /* Light yellow/orange tint */
-    border-color: #fde68a;
-}
-.porciones-box:hover {
-    border-color: #f59e0b;
-}
-.btn-portion {
-    background: #f59e0b;
-}
-.btn-portion:hover:not(:disabled) {
-    background: #d97706;
 }
 .btn-add:disabled { opacity: 0.5; cursor: not-allowed; }
 

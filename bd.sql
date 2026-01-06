@@ -41,7 +41,8 @@ CREATE TABLE pedido (
     mesa INT NOT NULL,
     usuario_id INT,
     detalle TEXT,
-    estado ENUM('pedido','preparado','entregado') DEFAULT 'pedido',
+    tipo_servicio ENUM('local','llevar') DEFAULT 'local',
+    estado ENUM('pedido','preparado','entregado','pagado') DEFAULT 'pedido',
     fecha DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (usuario_id) REFERENCES usuarios(id)
 );

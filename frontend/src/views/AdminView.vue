@@ -10,7 +10,7 @@ ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, BarEleme
 const router = useRouter();
 const stats = ref({ pedidosHoy: 0, ventasHoy: 0, totalClientes: 0, pedidosPendientes: 0 });
 const recientes = ref([]);
-const form = ref({ id: null, nombre: '', precio: '', categoria: 'comida', imagen: '', descripcion: '' });
+const form = ref({ id: null, nombre: '', precio: '', categoria: 'comida', descripcion: '' });
 const menu = ref([]);
 const editing = ref(false);
 const activeTab = ref('dashboard');
@@ -30,6 +30,9 @@ const chartOptions = {
 const loaded = ref({ stats: false, recientes: false, usuarios: false, pedidos: false });
 const userForm = ref({ id: null, usuario: '', nombres: '', apellidos: '', clave: '', tipo: 'pedido' });
 const userEditing = ref(false);
+const imagenFile = ref(null);
+const currentImageUrl = ref(null);
+const imagenName = ref('');
 
 onMounted(() => {
   const rol = localStorage.getItem('rol');
@@ -149,24 +152,28 @@ const setTab = async (t) => {
   }
 };
 const submitMenu = async () => {
-  const payload = {
-    nombre: form.value.nombre,
-    precio: parseFloat(form.value.precio),
-    categoria: form.value.categoria,
-    imagen: form.value.imagen,
-    descripcion: form.value.descripcion,
-  };
+  const fd = new FormData();
+  fd.append('nombre', form.value.nombre);
+  fd.append('precio', String(form.value.precio));
+  fd.append('categoria', form.value.categoria);
+  fd.append('descripcion', form.value.descripcion);
+  if (imagenFile.value) {
+    fd.append('imagen', imagenFile.value);
+  }
   if (editing.value && form.value.id) {
-    await api.put(`/menu/${form.value.id}`, payload);
+    fd.append('_method', 'PUT');
+    await api.post(`/menu/${form.value.id}`, fd);
   } else {
-    await api.post('/menu', payload);
+    await api.post('/menu', fd);
   }
   clearForm();
   loadMenu();
 };
 const editItem = (item) => {
   editing.value = true;
-  form.value = { id: item.id, nombre: item.nombre, precio: item.precio, categoria: item.categoria || 'comida', imagen: item.imagen, descripcion: item.descripcion };
+  form.value = { id: item.id, nombre: item.nombre, precio: item.precio, categoria: item.categoria || 'comida', descripcion: item.descripcion };
+  imagenFile.value = null;
+  currentImageUrl.value = item.imagen || null;
 };
 const deleteItem = async (id) => {
   await api.delete(`/menu/${id}`);
@@ -174,7 +181,8 @@ const deleteItem = async (id) => {
 };
 const clearForm = () => {
   editing.value = false;
-  form.value = { id: null, nombre: '', precio: '', categoria: 'comida', imagen: '', descripcion: '' };
+  form.value = { id: null, nombre: '', precio: '', categoria: 'comida', descripcion: '' };
+  imagenFile.value = null;
 };
 const logout = () => {
   localStorage.clear();
@@ -329,8 +337,13 @@ const exportReportPDF = () => {
               <input v-model="form.precio" type="number" step="0.01" class="form-control" placeholder="0.00" required>
             </div>
             <div class="form-group">
-              <label style="font-weight: 600; color: #444; margin-bottom: 4px; display: block;">Imagen URL</label>
-              <input v-model="form.imagen" type="url" class="form-control" placeholder="https://..." required>
+              <label style="font-weight: 600; color: #444; margin-bottom: 4px; display: block;">Imagen del Plato</label>
+              <input type="file" class="form-control" accept="image/*" :required="!editing" @change="e => { imagenFile.value = e.target.files?.[0] || null; imagenName.value = imagenFile.value ? imagenFile.value.name : ''; }">
+              <div v-if="editing && currentImageUrl" style="margin-top:8px; display:flex; align-items:center; gap:10px;">
+                <img :src="currentImageUrl" alt="" style="width:64px; height:64px; object-fit:cover; border:1px solid #ddd;">
+                <small style="color:#777;">Imagen actual. Si no subes una nueva, se mantiene.</small>
+              </div>
+              <div v-if="imagenName" style="margin-top:6px; color:#555; font-size:12px;">Seleccionado: {{ imagenName }}</div>
             </div>
             <div class="form-group" style="grid-column: span 2;">
               <label style="font-weight: 600; color: #444; margin-bottom: 4px; display: block;">Descripción</label>
