@@ -3,7 +3,6 @@ import axios from 'axios';
 const api = axios.create({
   baseURL: 'http://localhost:8000/api',
   headers: {
-    'Content-Type': 'application/json',
     'Accept': 'application/json'
   }
 });
@@ -16,6 +15,12 @@ api.interceptors.request.use(config => {
   // pero el frontend espera 'token' en localStorage para validar sesión en las vistas.
   if (token) {
     // config.headers.Authorization = `Bearer ${token}`;
+  }
+  // Si es FormData, eliminar Content-Type para que el navegador establezca multipart/form-data correctamente
+  if (config.data instanceof FormData) {
+    if (config.headers) {
+      delete config.headers['Content-Type'];
+    }
   }
   return config;
 });

@@ -1,9 +1,7 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue';
-import { useRouter } from 'vue-router';
 import api from '../api';
 
-const router = useRouter();
 const usuarioNombre = ref('Cajero Principal');
 const estadoCaja = ref('Cerrada'); // Abierta, Cerrada
 const cajaId = ref(null);
@@ -60,31 +58,25 @@ const cargarPedidos = async () => {
         // Reiniciar estado de mesas
         initMesas(); 
 
-        // Mapear pedidos a mesas
+        // Mapear pedidos a mesas usando costo real y derivando estado 'por_pagar'
         pedidos.forEach(p => {
-            // Filtrar solo pedidos activos (no pagados)
-            if (p.estado !== 'pagado' && p.estado !== 'cancelado') {
-                const mesaIndex = mesas.value.findIndex(m => m.id === parseInt(p.mesa));
-                if (mesaIndex !== -1) {
-                    mesas.value[mesaIndex].estado = 'ocupada'; // O 'por_pagar' si estuviera listo
-                    
-                    // *PARSING DE PRECIO*: 
-                    // El backend guarda "Pollo a la brasa" pero no precio en la tabla pedido.
-                    // Vamos a intentar extraer precio si existe en el string o asignar uno por defecto.
-                    let precioEstimado = 0;
-                    if(p.detalle.includes('Pollo')) precioEstimado = 60.00;
-                    else if(p.detalle.includes('Gaseosa')) precioEstimado = 10.00;
-                    else if(p.detalle.includes('Parrilla')) precioEstimado = 80.00;
-                    else precioEstimado = 25.00; // Default
-
-                    mesas.value[mesaIndex].items.push({
-                        id: p.id,
-                        nombre: p.detalle,
-                        cantidad: 1, // Por ahora 1 pedido = 1 item
-                        precio: precioEstimado,
-                        estado: p.estado
-                    });
-                }
+            if (p.estado === 'pagado') return; // ignorar pagados en el mapa de ocupación
+            const mesaIndex = mesas.value.findIndex(m => m.id === parseInt(p.mesa));
+            if (mesaIndex !== -1) {
+                // Derivar estado de la mesa:
+                // - Si hay entregados sin pagar -> 'por_pagar'
+                // - Si hay en cocina o preparados -> 'ocupada'
+                const current = mesas.value[mesaIndex].estado;
+                const derived = p.estado === 'entregado' ? 'por_pagar' : 'ocupada';
+                mesas.value[mesaIndex].estado = current === 'por_pagar' ? 'por_pagar' : derived;
+                
+                mesas.value[mesaIndex].items.push({
+                    id: p.id,
+                    nombre: p.detalle,
+                    cantidad: 1,
+                    precio: Number(p.costo || 0),
+                    estado: p.estado
+                });
             }
         });
 
@@ -92,6 +84,8 @@ const cargarPedidos = async () => {
         mesas.value.forEach(m => {
             if (m.items.length > 0) {
                 m.total = m.items.reduce((acc, i) => acc + i.precio, 0);
+            } else {
+                m.total = 0;
             }
         });
 
@@ -163,7 +157,7 @@ const abrirCaja = async () => {
         await api.post('/caja/abrir');
         estadoCaja.value = 'Abierta';
         actualizarEstado(); 
-    } catch(e) { alert('Error abriendo caja'); }
+    } catch(e) { console.error(e); alert('Error abriendo caja'); }
 };
 
 const cerrarCaja = async () => {
@@ -171,11 +165,11 @@ const cerrarCaja = async () => {
         await api.post('/caja/cerrar');
         estadoCaja.value = 'Cerrada';
         actualizarEstado(); 
-    } catch(e) { alert('Error cerrando caja'); }
+    } catch(e) { console.error(e); alert('Error cerrando caja'); }
 };
 
 onMounted(() => {
-    const rol = localStorage.getItem('rol');
+    // const rol = localStorage.getItem('rol');
     // Validation Logic (Commented for dev ease if needed)
     // if (rol !== 'caja') router.push('/login');
     

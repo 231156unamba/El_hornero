@@ -16,6 +16,7 @@ class Pedido extends Model
         'mesa',
         'usuario_id',
         'detalle',
+        'tipo_servicio',
         'estado',
         'fecha',
     ];

@@ -35,6 +35,7 @@ class PedidoController extends Controller
             return [
                 'id' => (int) $p->id,
                 'mesa' => (int) $p->mesa,
+                'tipo_servicio' => (string) ($p->tipo_servicio ?? 'local'),
                 'detalle' => (string) $p->detalle,
                 'estado' => (string) $p->estado,
                 'fecha' => (string) $p->fecha,
@@ -50,12 +51,14 @@ class PedidoController extends Controller
             'mesa' => 'required|integer',
             'detalle' => 'required|string',
             'usuario_id' => 'required|integer',
+            'tipo_servicio' => 'nullable|string|in:local,llevar',
         ]);
 
         $pedido = new Pedido();
         $pedido->mesa = $request->mesa;
         $pedido->usuario_id = $request->usuario_id;
         $pedido->detalle = $request->detalle;
+        $pedido->tipo_servicio = $request->input('tipo_servicio', 'local');
         $pedido->estado = 'pedido';
         $pedido->fecha = now();
         $pedido->save();
