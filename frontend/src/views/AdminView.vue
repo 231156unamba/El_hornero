@@ -8,6 +8,7 @@ import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, BarElement, Title, Tooltip, Legend);
 
 const router = useRouter();
+const apiOrigin = new URL(api.defaults.baseURL).origin;
 const stats = ref({ pedidosHoy: 0, ventasHoy: 0, totalClientes: 0, pedidosPendientes: 0 });
 const recientes = ref([]);
 const form = ref({ id: null, nombre: '', precio: '', categoria: 'comida', descripcion: '' });
@@ -33,6 +34,20 @@ const userEditing = ref(false);
 const imagenFile = ref(null);
 const currentImageUrl = ref(null);
 const imagenName = ref('');
+
+const menuImageUrl = (item) => {
+  if (!item) return '';
+  if (item.imagen_url) return item.imagen_url;
+  const img = item.imagen;
+  if (!img) return '';
+  if (/^https?:\/\//i.test(img)) return img;
+  if (img.startsWith('/')) return apiOrigin + img;
+  return `${apiOrigin}/images/menu/${img}`;
+};
+
+const imgFallback = (e) => {
+  e.target.src = '/logo.png';
+};
 
 onMounted(() => {
   const rol = localStorage.getItem('rol');
@@ -152,28 +167,42 @@ const setTab = async (t) => {
   }
 };
 const submitMenu = async () => {
-  const fd = new FormData();
-  fd.append('nombre', form.value.nombre);
-  fd.append('precio', String(form.value.precio));
-  fd.append('categoria', form.value.categoria);
-  fd.append('descripcion', form.value.descripcion);
-  if (imagenFile.value) {
-    fd.append('imagen', imagenFile.value);
+  try {
+    const fd = new FormData();
+    fd.append('nombre', form.value.nombre);
+    fd.append('precio', String(form.value.precio));
+    fd.append('categoria', form.value.categoria);
+    fd.append('descripcion', form.value.descripcion);
+    if (imagenFile.value) {
+      fd.append('imagen', imagenFile.value);
+    }
+    if (editing.value && form.value.id) {
+      fd.append('_method', 'PUT');
+      const r = await api.post(`/menu/${form.value.id}`, fd);
+      if (!r.data?.success) {
+        alert('No se pudo actualizar el plato.');
+        return;
+      }
+    } else {
+      const r = await api.post('/menu', fd);
+      if (!r.data?.success) {
+        alert('No se pudo crear el plato.');
+        return;
+      }
+    }
+    clearForm();
+    await loadMenu();
+    alert('Plato guardado correctamente.');
+  } catch (err) {
+    console.error('Error guardando plato:', err);
+    alert('Ocurrió un error al guardar el plato.');
   }
-  if (editing.value && form.value.id) {
-    fd.append('_method', 'PUT');
-    await api.post(`/menu/${form.value.id}`, fd);
-  } else {
-    await api.post('/menu', fd);
-  }
-  clearForm();
-  loadMenu();
 };
 const editItem = (item) => {
   editing.value = true;
   form.value = { id: item.id, nombre: item.nombre, precio: item.precio, categoria: item.categoria || 'comida', descripcion: item.descripcion };
   imagenFile.value = null;
-  currentImageUrl.value = item.imagen || null;
+  currentImageUrl.value = menuImageUrl(item) || null;
 };
 const deleteItem = async (id) => {
   await api.delete(`/menu/${id}`);
@@ -183,6 +212,8 @@ const clearForm = () => {
   editing.value = false;
   form.value = { id: null, nombre: '', precio: '', categoria: 'comida', descripcion: '' };
   imagenFile.value = null;
+  imagenName.value = '';
+  currentImageUrl.value = null;
 };
 const logout = () => {
   localStorage.clear();
@@ -359,7 +390,7 @@ const exportReportPDF = () => {
         <h3 style="margin: 25px 0 15px; color: #f1af32; font-size: 1.3rem; border-bottom: 1px solid #eee; padding-bottom: 10px;">Comidas</h3>
         <div class="menu-list">
           <div class="menu-item" v-for="item in menu.filter(i => (i.categoria || '').toLowerCase() === 'comida')" :key="item.id">
-            <img :src="item.imagen" alt="">
+            <img :src="menuImageUrl(item)" alt="" @error="imgFallback">
             <div class="menu-content">
               <div class="menu-header">
                 <div class="nombre">{{ item.nombre }}</div>
@@ -377,7 +408,7 @@ const exportReportPDF = () => {
         <h3 style="margin: 40px 0 15px; color: #f1af32; font-size: 1.3rem; border-bottom: 1px solid #eee; padding-bottom: 10px;">Bebidas</h3>
         <div class="menu-list">
           <div class="menu-item" v-for="item in menu.filter(i => (i.categoria || '').toLowerCase() === 'bebidas')" :key="item.id">
-            <img :src="item.imagen" alt="">
+            <img :src="menuImageUrl(item)" alt="" @error="imgFallback">
             <div class="menu-content">
               <div class="menu-header">
                 <div class="nombre">{{ item.nombre }}</div>

@@ -18,6 +18,7 @@ const bebidaSeleccionada = ref('');
 const cantidadBebida = ref(1);
 // Removido: porciones/extras
 const tipoServicio = ref('local');
+const apiOrigin = new URL(api.defaults.baseURL).origin;
 
 const platosMenu = computed(() => menu.value.filter(p => (p.categoria || 'comida') === 'comida'));
 const bebidasMenu = computed(() => menu.value.filter(p => (p.categoria || 'comida') === 'bebidas'));
@@ -92,6 +93,30 @@ const eliminarDelCarrito = (index) => {
   carrito.value.splice(index, 1);
 };
 
+const menuImageUrl = (obj) => {
+  if (!obj) return '';
+  if (obj.imagen_url) return obj.imagen_url;
+  const img = obj.imagen;
+  if (!img) return '';
+  if (/^https?:\/\//i.test(img)) return img;
+  if (img.startsWith('/')) return apiOrigin + img;
+  return `${apiOrigin}/images/menu/${img}`;
+};
+
+const buscarMenuPorNombre = (nombre) => {
+  const n = (nombre || '').trim().toLowerCase();
+  return menu.value.find(m => (m.nombre || '').trim().toLowerCase() === n) || null;
+};
+
+const itemsDePedido = (p) => {
+  const d = String(p.detalle || '');
+  return d.split(',').map(s => s.trim()).map(s => {
+    const m = s.match(/^\s*(\d+)\s*x\s*(.+)$/i);
+    const nombre = m ? String(m[2]).replace(/\(.*$/, '').trim() : String(s).replace(/\(.*$/, '').trim();
+    return buscarMenuPorNombre(nombre);
+  }).filter(Boolean);
+};
+
 const total = computed(() => {
   let sum = carrito.value.reduce((acc, item) => acc + (parseFloat(item.precio) * item.cantidad), 0);
   if (ajustePrecio.value) {
@@ -130,6 +155,27 @@ const crearPedido = async () => {
   } catch (error) {
     console.error(error);
     alert('Error de conexión');
+  }
+};
+
+const cancelarPedido = async (pedido) => {
+  try {
+    if (String(pedido.estado).toLowerCase() !== 'pedido') {
+      alert('Solo se puede cancelar pedidos en estado pedido.');
+      return;
+    }
+    const ok = confirm(`¿Cancelar pedido de la mesa ${pedido.mesa}?`);
+    if (!ok) return;
+    const r = await api.delete(`/pedidos/${pedido.id}`);
+    if (r.data?.success) {
+      fetchPedidos();
+      alert('Pedido cancelado.');
+    } else {
+      alert(r.data?.error || 'No se pudo cancelar el pedido.');
+    }
+  } catch (e) {
+    console.error(e);
+    alert('Error al cancelar el pedido.');
   }
 };
 
@@ -277,6 +323,7 @@ const logout = () => {
                 <ul v-else class="cart-list">
                     <li v-for="(item, index) in carrito" :key="index">
                         <div class="cart-item-info">
+                            <img :src="menuImageUrl(item)" alt="" class="thumb">
                             <span class="qty">{{ item.cantidad }}x</span>
                             <span class="name">{{ item.nombre }}</span>
                         </div>
@@ -320,12 +367,16 @@ const logout = () => {
                 <div class="order-body">
                     <p>{{ p.detalle }}</p>
                     <p style="margin-top:6px; color:#6b7280;">Tipo: {{ p.tipo_servicio === 'llevar' ? 'Para llevar' : 'Local' }}</p>
+                    <div class="thumbs">
+                      <img v-for="it in itemsDePedido(p)" :key="it.id" :src="menuImageUrl(it)" alt="" class="thumb">
+                    </div>
                 </div>
                 <div class="order-footer">
                     <span style="float:left; font-weight:700; color:#b45309;">Costo: S/ {{ Number(p.costo || 0).toFixed(2) }}</span>
                     <span class="status-pill">
                         {{ p.estado === 'pedido' ? 'En Cocina' : (p.estado === 'preparado' ? '¡LISTO!' : p.estado.toUpperCase()) }}
                     </span>
+                    <button class="btn-cancel" @click="cancelarPedido(p)" :disabled="String(p.estado).toLowerCase() !== 'pedido'">Cancelar</button>
                 </div>
              </div>
          </div>
@@ -626,6 +677,8 @@ select:focus, input:focus {
     padding: 0;
     margin: 0;
 }
+.thumbs { margin-top: 8px; display: flex; gap: 6px; flex-wrap: wrap; }
+.thumb { width: 36px; height: 36px; object-fit: cover; border-radius: 6px; border: 1px solid #e5e7eb; }
 .cart-list li {
     display: flex;
     justify-content: space-between;
@@ -682,6 +735,21 @@ select:focus, input:focus {
     box-shadow: 0 4px 12px rgba(0,0,0,0.15);
 }
 .btn-submit:disabled { background: #9ca3af; cursor: not-allowed; }
+
+.btn-cancel {
+  margin-left: 10px;
+  background: #ef4444;
+  color: #fff;
+  border: none;
+  padding: 6px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+}
+.btn-cancel:disabled {
+  background: #9ca3af;
+  cursor: not-allowed;
+}
 
 /* Right Panel */
 .active-orders-panel h3 {

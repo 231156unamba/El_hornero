@@ -31,6 +31,7 @@ Route::prefix('caja')->group(function () {
 Route::get('/pedidos', [PedidoController::class, 'index']);
 Route::post('/pedidos', [PedidoController::class, 'store']);
 Route::post('/pedidos/actualizar', [PedidoController::class, 'updateStatusFromPost']);
+Route::delete('/pedidos/{id}', [PedidoController::class, 'destroy']);
 
 Route::prefix('admin')->group(function () {
     Route::get('/stats', [AdminController::class, 'stats']);
