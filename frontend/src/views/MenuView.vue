@@ -5,9 +5,24 @@ import api from '../api';
 const menu = ref([]);
 const loading = ref(true);
 const selectedCat = ref('comida');
+const apiOrigin = new URL(api.defaults.baseURL).origin;
 const filteredMenu = computed(() => {
   return menu.value.filter(m => (m.categoria || 'comida') === selectedCat.value);
 });
+
+const menuImageUrl = (plato) => {
+  if (!plato) return '';
+  if (plato.imagen_url) return plato.imagen_url;
+  const img = plato.imagen;
+  if (!img) return '';
+  if (/^https?:\/\//i.test(img)) return img;
+  if (img.startsWith('/')) return apiOrigin + img;
+  return `${apiOrigin}/images/menu/${img}`;
+};
+
+const imgFallback = (e) => {
+  e.target.src = '/logo.png';
+};
 
 const fetchMenu = async () => {
   try {
@@ -42,7 +57,7 @@ onMounted(() => {
       <div v-else class="menu-list">
         <div v-for="plato in filteredMenu" :key="plato.id" class="menu-item">
           <div class="thumb">
-            <img :src="plato.imagen" :alt="plato.nombre">
+            <img :src="menuImageUrl(plato)" :alt="plato.nombre" @error="imgFallback">
             <div class="price-badge">S/. {{ parseFloat(plato.precio).toFixed(2) }}</div>
           </div>
           <div class="menu-content">

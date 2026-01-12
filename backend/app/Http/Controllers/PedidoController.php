@@ -96,4 +96,17 @@ class PedidoController extends Controller
         }
         return response()->json(['success' => false, 'error' => 'Pedido no encontrado'], 404);
     }
+
+    public function destroy($id)
+    {
+        $pedido = Pedido::find($id);
+        if (!$pedido) {
+            return response()->json(['success' => false, 'error' => 'Pedido no encontrado'], 404);
+        }
+        if (strtolower((string)$pedido->estado) !== 'pedido') {
+            return response()->json(['success' => false, 'error' => 'Solo se puede cancelar pedidos en estado pedido'], 409);
+        }
+        $pedido->delete();
+        return response()->json(['success' => true]);
+    }
 }

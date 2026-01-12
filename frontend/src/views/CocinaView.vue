@@ -70,6 +70,7 @@ const logout = () => {
 };
 
 const pendientes = computed(() => pedidos.value.filter(p => p.estado === 'pedido'));
+const enCocinando = computed(() => pedidos.value.filter(p => p.estado === 'cocinando'));
 const preparados = computed(() => pedidos.value.filter(p => p.estado === 'preparado'));
 const entregados = computed(() => pedidos.value.filter(p => p.estado === 'entregado'));
 </script>
@@ -120,6 +121,41 @@ const entregados = computed(() => pedidos.value.filter(p => p.estado === 'entreg
                       <div style="margin-top:4px; color:#64748b; font-size:12px;">Tipo: {{ p.tipo_servicio === 'llevar' ? 'Para llevar' : 'Local' }}</div>
                     </td>
                     <td class="action-cell text-right">
+                      <div class="btn-group">
+                        <button class="btn-action btn-orange" @click="cambiarEstado(p.id, 'cocinando')">Cocinando</button>
+                      </div>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Columna 2: Cocinando -->
+          <div class="kitchen-col">
+            <h2 class="col-title text-orange-main">Cocinando</h2>
+            <div class="table-card">
+              <table class="kitchen-table">
+                <thead>
+                  <tr>
+                    <th>Hora</th>
+                    <th>Mesa</th>
+                    <th>Detalle del Pedido</th>
+                    <th class="text-right">Acción</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-if="enCocinando.length === 0">
+                    <td colspan="4" class="empty-cell">No hay pedidos en preparación</td>
+                  </tr>
+                  <tr v-for="p in enCocinando" :key="p.id" class="row-pending">
+                    <td class="time-cell">{{ formatHora(p.fecha) }}</td>
+                    <td class="table-cell-highlight">Mesa {{ p.mesa }}</td>
+                    <td class="detail-cell">
+                      {{ p.detalle }}
+                      <div style="margin-top:4px; color:#64748b; font-size:12px;">Tipo: {{ p.tipo_servicio === 'llevar' ? 'Para llevar' : 'Local' }}</div>
+                    </td>
+                    <td class="action-cell text-right">
                       <button class="btn-action btn-orange" @click="cambiarEstado(p.id, 'preparado')">
                         Preparado
                       </button>
@@ -129,7 +165,7 @@ const entregados = computed(() => pedidos.value.filter(p => p.estado === 'entreg
               </table>
             </div>
           </div>
-  
+ 
           <!-- Columna 2: Preparado -->
           <div class="kitchen-col">
             <h2 class="col-title text-green-main">Preparado</h2>
