@@ -5,7 +5,7 @@ import api from '../api';
 
 const router = useRouter();
 const pedidos = ref([]);
-const mesas = Array.from({ length: 20 }, (_, i) => i + 1); // 20 mesas simuladas
+const mesas = Array.from({ length: 10 }, (_, i) => i + 1); // 20 mesas simuladas
 const mesaSeleccionada = ref('');
 const menu = ref([]);
 const platoSeleccionado = ref('');
@@ -182,8 +182,6 @@ const cancelarPedido = async (pedido) => {
 const formatHora = (fechaStr) => {
   if (!fechaStr) return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   
-  // Si la fecha viene de MySQL (YYYY-MM-DD HH:mm:ss), agregamos 'Z' para tratarla como UTC
-  // y que el navegador la convierta automáticamente a la hora local del usuario.
   const isoStr = fechaStr.includes(' ') ? fechaStr.replace(' ', 'T') + 'Z' : fechaStr;
   const date = new Date(isoStr);
   
@@ -257,7 +255,7 @@ const logout = () => {
               <label>Comida / Platos</label>
               <div class="add-item-grid">
                 <div class="select-wrapper item-select">
-                  <select v-model="platoSeleccionado">
+                  <select v-model.number="platoSeleccionado">
                     <option value="">-- Seleccionar Plato --</option>
                     <option v-for="p in platosMenu" :key="p.id" :value="p.id">
                         {{ p.nombre }} - S/ {{ parseFloat(p.precio).toFixed(2) }}
@@ -283,7 +281,7 @@ const logout = () => {
                 <label>Bebidas / Refrescos</label>
                 <div class="add-item-grid">
                   <div class="select-wrapper item-select">
-                    <select v-model="bebidaSeleccionada">
+                    <select v-model.number="bebidaSeleccionada">
                       <option value="">-- Seleccionar --</option>
                       <option v-for="b in bebidasMenu" :key="b.id" :value="b.id">
                           {{ b.nombre }}
