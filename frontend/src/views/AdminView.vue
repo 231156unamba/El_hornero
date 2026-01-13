@@ -35,6 +35,13 @@ const imagenFile = ref(null);
 const currentImageUrl = ref(null);
 const imagenName = ref('');
 
+const onImageChange = (e) => {
+  const files = e?.target?.files;
+  const f = files && files[0] ? files[0] : null;
+  imagenFile.value = f;
+  imagenName.value = f ? f.name : '';
+};
+
 const menuImageUrl = (item) => {
   if (!item) return '';
   if (item.imagen_url) return item.imagen_url;
@@ -105,8 +112,11 @@ const editUsuario = (u) => {
   userEditing.value = true;
   userForm.value = { id: u.id, usuario: u.usuario, nombres: u.nombres || '', apellidos: u.apellidos || '', clave: '', tipo: u.tipo || 'pedido' };
 };
-const deleteUsuario = async (id) => {
-  await api.delete(`/admin/usuarios/${id}`);
+const deleteUsuario = async (u) => {
+  const nombre = ((u.nombres || '') + ' ' + (u.apellidos || '')).trim() || u.usuario || String(u.id);
+  const ok = confirm(`¿Está seguro que desea eliminar al usuario ${nombre}?`);
+  if (!ok) return;
+  await api.delete(`/admin/usuarios/${u.id}`);
   loadUsuarios();
 };
 const clearUsuarioForm = () => {
@@ -168,6 +178,10 @@ const setTab = async (t) => {
 };
 const submitMenu = async () => {
   try {
+    if (!editing.value && !imagenFile.value) {
+      alert('Selecciona una imagen para el plato.');
+      return;
+    }
     const fd = new FormData();
     fd.append('nombre', form.value.nombre);
     fd.append('precio', String(form.value.precio));
@@ -180,13 +194,15 @@ const submitMenu = async () => {
       fd.append('_method', 'PUT');
       const r = await api.post(`/menu/${form.value.id}`, fd);
       if (!r.data?.success) {
-        alert('No se pudo actualizar el plato.');
+        const msg = r.data?.error || 'No se pudo actualizar el plato.';
+        alert(msg);
         return;
       }
     } else {
       const r = await api.post('/menu', fd);
       if (!r.data?.success) {
-        alert('No se pudo crear el plato.');
+        const msg = r.data?.error || 'No se pudo crear el plato.';
+        alert(msg);
         return;
       }
     }
@@ -194,8 +210,15 @@ const submitMenu = async () => {
     await loadMenu();
     alert('Plato guardado correctamente.');
   } catch (err) {
-    console.error('Error guardando plato:', err);
-    alert('Ocurrió un error al guardar el plato.');
+    const errors = err?.response?.data?.errors;
+    if (errors) {
+      const first = Object.values(errors)[0];
+      const msg = Array.isArray(first) ? first[0] : String(first || '');
+      alert(msg || 'Error de validación.');
+      return;
+    }
+    const msg = err?.response?.data?.error || err?.response?.data?.message || 'Ocurrió un error al guardar el plato.';
+    alert(msg);
   }
 };
 const editItem = (item) => {
@@ -204,8 +227,12 @@ const editItem = (item) => {
   imagenFile.value = null;
   currentImageUrl.value = menuImageUrl(item) || null;
 };
-const deleteItem = async (id) => {
-  await api.delete(`/menu/${id}`);
+const deleteItem = async (item) => {
+  const nombre = item?.nombre || String(item?.id || '');
+  const tipo = ((item?.categoria || '').toLowerCase() === 'bebidas') ? 'bebida' : 'plato';
+  const ok = confirm(`¿Está seguro de eliminar "${nombre}"?`);
+  if (!ok) return;
+  await api.delete(`/menu/${item.id}`);
   loadMenu();
 };
 const clearForm = () => {
@@ -367,14 +394,14 @@ const exportReportPDF = () => {
               <label style="font-weight: 600; color: #444; margin-bottom: 4px; display: block;">Precio (S/.)</label>
               <input v-model="form.precio" type="number" step="0.01" class="form-control" placeholder="0.00" required>
             </div>
-            <div class="form-group">
-              <label style="font-weight: 600; color: #444; margin-bottom: 4px; display: block;">Imagen del Plato</label>
-              <input type="file" class="form-control" accept="image/*" :required="!editing" @change="e => { imagenFile.value = e.target.files?.[0] || null; imagenName.value = imagenFile.value ? imagenFile.value.name : ''; }">
-              <div v-if="editing && currentImageUrl" style="margin-top:8px; display:flex; align-items:center; gap:10px;">
-                <img :src="currentImageUrl" alt="" style="width:64px; height:64px; object-fit:cover; border:1px solid #ddd;">
-                <small style="color:#777;">Imagen actual. Si no subes una nueva, se mantiene.</small>
-              </div>
-              <div v-if="imagenName" style="margin-top:6px; color:#555; font-size:12px;">Seleccionado: {{ imagenName }}</div>
+          <div class="form-group">
+            <label style="font-weight: 600; color: #444; margin-bottom: 4px; display: block;">Imagen del Plato</label>
+            <input type="file" class="form-control" accept="image/*" :required="!editing" @change="onImageChange">
+            <div v-if="editing && currentImageUrl" style="margin-top:8px; display:flex; align-items:center; gap:10px;">
+              <img :src="currentImageUrl" alt="" style="width:64px; height:64px; object-fit:cover; border:1px solid #ddd;">
+              <small style="color:#777;">Imagen actual. Si no subes una nueva, se mantiene.</small>
+            </div>
+            <div v-if="imagenName" style="margin-top:6px; color:#555; font-size:12px;">Seleccionado: {{ imagenName }}</div>
             </div>
             <div class="form-group" style="grid-column: span 2;">
               <label style="font-weight: 600; color: #444; margin-bottom: 4px; display: block;">Descripción</label>
@@ -399,7 +426,7 @@ const exportReportPDF = () => {
               <div class="descripcion">{{ item.descripcion }}</div>
               <div class="menu-actions">
                 <button class="btn btn-success" @click="editItem(item)">Editar</button>
-                <button class="btn btn-danger" @click="deleteItem(item.id)">Eliminar</button>
+                <button class="btn btn-danger" @click="deleteItem(item)">Eliminar</button>
               </div>
             </div>
           </div>
@@ -417,7 +444,7 @@ const exportReportPDF = () => {
               <div class="descripcion">{{ item.descripcion }}</div>
               <div class="menu-actions">
                 <button class="btn btn-success" @click="editItem(item)">Editar</button>
-                <button class="btn btn-danger" @click="deleteItem(item.id)">Eliminar</button>
+                <button class="btn btn-danger" @click="deleteItem(item)">Eliminar</button>
               </div>
             </div>
           </div>
@@ -562,7 +589,7 @@ const exportReportPDF = () => {
               <td>
                 <div class="menu-actions" style="justify-content: center;">
                   <button class="btn btn-success" @click="editUsuario(c)">Editar</button>
-                  <button class="btn btn-danger" v-if="c.id !== 1" @click="deleteUsuario(c.id)">Eliminar</button>
+                  <button class="btn btn-danger" v-if="c.id !== 1" @click="deleteUsuario(c)">Eliminar</button>
                   <button class="btn btn-danger" v-else disabled style="opacity: 0.5; cursor: not-allowed;">Eliminar</button>
                 </div>
               </td>

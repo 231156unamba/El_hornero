@@ -144,7 +144,20 @@ class MenuController extends Controller
         if (!$menu) {
             return response()->json(['success' => false, 'error' => 'No encontrado'], 404);
         }
+        $imageDeleted = false;
+        $imageName = $menu->imagen ? basename((string) $menu->imagen) : null;
+        if ($imageName) {
+            $path = public_path('images/menu/' . $imageName);
+            if (is_file($path)) {
+                try {
+                    unlink($path);
+                    $imageDeleted = true;
+                } catch (\Throwable $e) {
+                    $imageDeleted = false;
+                }
+            }
+        }
         $menu->delete();
-        return response()->json(['success' => true]);
+        return response()->json(['success' => true, 'image_deleted' => $imageDeleted]);
     }
 }
