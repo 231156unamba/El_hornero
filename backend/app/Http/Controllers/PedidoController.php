@@ -86,11 +86,15 @@ class PedidoController extends Controller
         $request->validate([
             'id' => 'required|integer',
             'estado' => 'required|string',
+            'venta_id' => 'nullable|integer',
         ]);
 
         $pedido = Pedido::find($request->id);
         if ($pedido) {
             $pedido->estado = $request->estado;
+            if ($request->filled('venta_id')) {
+                $pedido->venta_id = $request->venta_id;
+            }
             $pedido->save();
             return response()->json(['success' => true]);
         }

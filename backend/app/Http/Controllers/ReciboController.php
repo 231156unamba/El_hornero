@@ -9,9 +9,15 @@ use App\Models\SunatLog;
 
 class ReciboController extends Controller
 {
-    public function generar()
+    public function generar(Request $request)
     {
-        $venta = Venta::orderBy('id', 'desc')->first();
+        $ventaId = $request->input('venta_id');
+        if ($ventaId) {
+            $venta = Venta::find($ventaId);
+        } else {
+            $venta = Venta::orderBy('id', 'desc')->first();
+        }
+
         if (!$venta) {
             return response()->json(['error' => 'No hay ventas']);
         }
@@ -20,6 +26,10 @@ class ReciboController extends Controller
         $subtotal = round($total / 1.18, 2);
         $igv = round($total - $subtotal, 2);
         $numero = 'R' . date('Ymd') . str_pad($venta->id, 6, '0', STR_PAD_LEFT);
+        $tipo = $request->input('tipo', 'BOLETA');
+        if (!in_array($tipo, ['BOLETA', 'FACTURA'])) {
+            $tipo = 'BOLETA';
+        }
 
         $recibo = new Recibo();
         $recibo->venta_id = $venta->id;
@@ -27,7 +37,7 @@ class ReciboController extends Controller
         $recibo->subtotal = $subtotal;
         $recibo->igv = $igv;
         $recibo->total = $total;
-        $recibo->tipo = 'BOLETA';
+        $recibo->tipo = $tipo;
         $recibo->estado_sunat = 'PENDIENTE';
         $recibo->save();
 
@@ -38,7 +48,8 @@ class ReciboController extends Controller
             'numero' => $numero,
             'subtotal' => $subtotal,
             'igv' => $igv,
-            'total' => $total
+            'total' => $total,
+            'tipo' => $tipo
         ]);
     }
 

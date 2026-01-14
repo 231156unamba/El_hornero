@@ -33,7 +33,8 @@ CREATE TABLE caja (
 CREATE TABLE venta (
     id INT AUTO_INCREMENT PRIMARY KEY,
     fecha DATE NOT NULL,
-    monto DECIMAL(8,2) NOT NULL
+    monto DECIMAL(8,2) NOT NULL,
+    metodo_pago ENUM('Efectivo', 'Tarjeta', 'Yape') DEFAULT 'Efectivo'
 );
 
 CREATE TABLE pedido (
@@ -43,8 +44,10 @@ CREATE TABLE pedido (
     detalle TEXT,
     tipo_servicio ENUM('local','llevar') DEFAULT 'local',
     estado ENUM('pedido','cocinando','preparado','entregado','pagado') DEFAULT 'pedido',
+    venta_id INT,
     fecha DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (usuario_id) REFERENCES usuarios(id)
+    FOREIGN KEY (usuario_id) REFERENCES usuarios(id),
+    FOREIGN KEY (venta_id) REFERENCES venta(id)
 );
 
 CREATE TABLE venta_detalle (

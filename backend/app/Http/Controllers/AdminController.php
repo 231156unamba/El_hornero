@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\File;
 use App\Models\Pedido;
 use App\Models\Venta;
 use App\Models\Usuario;
@@ -207,12 +208,21 @@ class AdminController extends Controller
                     'id' => (int) $p->id,
                     'mesa' => (int) $p->mesa,
                     'mesero' => $p->mesero ? (string) $p->mesero : null,
+                    'tipo_servicio' => (string) $p->tipo_servicio,
                     'detalle' => (string) $p->detalle,
                     'estado' => (string) $p->estado,
                     'fecha' => (string) $p->fecha,
                     'costo' => round($total, 2),
                 ];
-            });
+            })
+            ->filter(function ($row) use ($request) {
+                $min = $request->filled('costo_min') ? (float) $request->input('costo_min') : null;
+                $max = $request->filled('costo_max') ? (float) $request->input('costo_max') : null;
+                if ($min !== null && $row['costo'] < $min) return false;
+                if ($max !== null && $row['costo'] > $max) return false;
+                return true;
+            })
+            ->values();
         return response()->json($rows);
     }
 
@@ -268,7 +278,7 @@ class AdminController extends Controller
 
     public function reporteRecibosEntregados(Request $request)
     {
-        $query = Recibo::query()->where('estado_sunat', 'ENVIADO')->leftJoin('venta', 'venta.id', '=', 'recibo.venta_id');
+        $query = Recibo::query()->leftJoin('venta', 'venta.id', '=', 'recibo.venta_id');
         if ($request->filled('from')) {
             $query->whereDate('recibo.fecha', '>=', $request->input('from'));
         }
@@ -279,9 +289,14 @@ class AdminController extends Controller
             $query->where('recibo.tipo', $request->input('tipo'));
         }
         $rows = $query->orderBy('recibo.fecha', 'desc')
-            ->select('recibo.*', 'venta.monto as venta_monto', 'venta.fecha as venta_fecha')
+            ->select('recibo.*', 'venta.monto as venta_monto', 'venta.fecha as venta_fecha', 'venta.metodo_pago')
             ->get()
             ->map(function ($r) {
+                // Fetch linked orders for details
+                $pedidos = \App\Models\Pedido::where('venta_id', $r->venta_id)->get();
+                $mesas = $pedidos->pluck('mesa')->unique()->implode(', ');
+                $detalles = $pedidos->pluck('detalle')->implode('; ');
+
                 return [
                     'id' => (int) $r->id,
                     'numero' => (string) $r->numero,
@@ -294,8 +309,56 @@ class AdminController extends Controller
                     'venta_id' => (int) $r->venta_id,
                     'venta_monto' => $r->venta_monto !== null ? (float) $r->venta_monto : null,
                     'venta_fecha' => $r->venta_fecha ? (string) $r->venta_fecha : null,
+                    'metodo_pago' => (string) $r->metodo_pago,
+                    'mesa' => $mesas,
+                    'detalle' => $detalles,
                 ];
             });
         return response()->json($rows);
+    }
+
+    public function cajaConfig()
+    {
+        $path = base_path('storage/app/caja-config.json');
+        if (!file_exists($path)) {
+            $data = [
+                'nombre_comercial' => 'Pollo a la Brasa “El Hornero”',
+                'ruc' => '10450610734',
+                'direccion' => 'Av. Tamburco N° 224, Tamburco – Abancay – Apurímac',
+                'telefono' => '972322520',
+                'yape_numero' => '972322520',
+            ];
+            File::ensureDirectoryExists(dirname($path));
+            File::put($path, json_encode($data, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT));
+            return response()->json($data);
+        }
+        $json = File::get($path);
+        $data = json_decode($json, true) ?: [];
+        return response()->json($data);
+    }
+
+    public function updateCajaConfig(Request $request)
+    {
+        $path = base_path('storage/app/caja-config.json');
+        $current = [];
+        if (file_exists($path)) {
+            $current = json_decode(File::get($path), true) ?: [];
+        }
+        $updated = [
+            'nombre_comercial' => $request->input('nombre_comercial', $current['nombre_comercial'] ?? ''),
+            'ruc' => $request->input('ruc', $current['ruc'] ?? ''),
+            'direccion' => $request->input('direccion', $current['direccion'] ?? ''),
+            'telefono' => $request->input('telefono', $current['telefono'] ?? ''),
+            'yape_numero' => $request->input('yape_numero', $current['yape_numero'] ?? ''),
+        ];
+        File::ensureDirectoryExists(dirname($path));
+        File::put($path, json_encode($updated, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT));
+        if ($request->hasFile('qr')) {
+            $file = $request->file('qr');
+            $targetDir = public_path('images/qr');
+            File::ensureDirectoryExists($targetDir);
+            $file->move($targetDir, 'yape.png');
+        }
+        return response()->json(['success' => true, 'config' => $updated]);
     }
 }

@@ -49,6 +49,7 @@ class CajaController extends Controller
         $venta = new Venta();
         $venta->fecha = now()->toDateString();
         $venta->monto = $monto;
+        $venta->metodo_pago = $request->input('metodo_pago', 'Efectivo');
         $venta->save();
 
         return response()->json([
