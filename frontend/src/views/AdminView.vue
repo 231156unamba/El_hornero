@@ -21,7 +21,7 @@ const pedidosDiarios = ref({ labels: [], datasets: [] });
 const pedidosMensuales = ref({ labels: [], datasets: [] });
 const pedidosAnuales = ref({ labels: [], datasets: [] });
 const reportType = ref('pedidos');
-const reportFilters = ref({ from: '', to: '', mesa: '', mesero_id: '', tipo: '' });
+const reportFilters = ref({ from: '', to: '', mesa: '', mesero_id: '', tipo: '', costo_min: '', costo_max: '' });
 const reportData = ref([]);
 const meseros = ref([]);
 const chartOptions = {
@@ -175,6 +175,10 @@ const setTab = async (t) => {
     if (!usuarios.value.length) await loadUsuarios();
     meseros.value = usuarios.value.filter(u => (u.tipo || '').toLowerCase() === 'pedido');
   }
+  if (t === 'caja_control') {
+    await loadCajaConfig();
+    await loadCierreAdmin();
+  }
 };
 const submitMenu = async () => {
   try {
@@ -229,7 +233,6 @@ const editItem = (item) => {
 };
 const deleteItem = async (item) => {
   const nombre = item?.nombre || String(item?.id || '');
-  const tipo = ((item?.categoria || '').toLowerCase() === 'bebidas') ? 'bebida' : 'plato';
   const ok = confirm(`¿Está seguro de eliminar "${nombre}"?`);
   if (!ok) return;
   await api.delete(`/menu/${item.id}`);
@@ -266,8 +269,10 @@ const loadReport = async () => {
     const params = {};
     if (reportFilters.value.from) params.from = reportFilters.value.from;
     if (reportFilters.value.to) params.to = reportFilters.value.to;
-    if (reportFilters.value.tipo) params.tipo = reportFilters.value.tipo;
-    const r = await api.get('/admin/reportes/recibos-entregados', { params });
+    if (reportFilters.value.mesa) params.mesa = reportFilters.value.mesa;
+    if (reportFilters.value.costo_min) params.costo_min = reportFilters.value.costo_min;
+    if (reportFilters.value.costo_max) params.costo_max = reportFilters.value.costo_max;
+    const r = await api.get('/admin/reportes/pedidos', { params });
     reportData.value = r.data;
   } else {
     reportData.value = [];
@@ -301,26 +306,79 @@ const exportReportPDF = () => {
   const titleMap = {
     'pedidos': 'Reporte de Pedidos',
     'pedidos_mesero': 'Reporte de Pedidos por Mesero',
-    'recibos_entregados': 'Reporte de Recibos Entregados'
+    'recibos_entregados': 'Reporte por Costo'
   };
   const title = titleMap[reportType.value] || 'Reporte';
   let html = '<html><head><title>'+title+'</title><style>';
   html += 'body{font-family:Arial,sans-serif;padding:16px;} h1{font-size:20px;margin:0 0 12px;} table{width:100%;border-collapse:collapse;} th,td{border:1px solid #ccc;padding:8px;font-size:12px;} th{background:#f4f4f4;}';
   html += '</style></head><body>';
   html += '<h1>'+title+'</h1>';
-  if (reportType.value === 'pedidos' || reportType.value === 'pedidos_mesero') {
+  if (reportType.value === 'pedidos' || reportType.value === 'pedidos_mesero' || reportType.value === 'recibos_entregados') {
     html += '<table><thead><tr><th>ID</th><th>Mesa</th><th>Mesero</th><th>Fecha</th><th>Estado</th><th>Costo</th><th>Detalle</th></tr></thead><tbody>';
     reportData.value.forEach(p => {
       html += '<tr><td>'+p.id+'</td><td>'+p.mesa+'</td><td>'+(p.mesero||'')+'</td><td>'+p.fecha+'</td><td>'+p.estado+'</td><td>S/. '+Number(p.costo||0).toFixed(2)+'</td><td>'+p.detalle+'</td></tr>';
     });
     html += '</tbody></table>';
-  } else if (reportType.value === 'recibos_entregados') {
-    html += '<table><thead><tr><th>ID</th><th>Número</th><th>Fecha</th><th>Tipo</th><th>Total</th><th>Subtotal</th><th>IGV</th><th>Venta</th></tr></thead><tbody>';
-    reportData.value.forEach(r => {
-      html += '<tr><td>'+r.id+'</td><td>'+r.numero+'</td><td>'+r.fecha+'</td><td>'+r.tipo+'</td><td>S/. '+Number(r.total||0).toFixed(2)+'</td><td>S/. '+Number(r.subtotal||0).toFixed(2)+'</td><td>S/. '+Number(r.igv||0).toFixed(2)+'</td><td>'+(r.venta_id||'-')+'</td></tr>';
-    });
-    html += '</tbody></table>';
   }
+  html += '</body></html>';
+  w.document.write(html);
+  w.document.close();
+  w.focus();
+  w.print();
+};
+
+const cajaForm = ref({ nombre_comercial: '', ruc: '', direccion: '', telefono: '', yape_numero: '' });
+const yapeQrFile = ref(null);
+const onYapeQrChange = (e) => {
+  const files = e?.target?.files;
+  yapeQrFile.value = files && files[0] ? files[0] : null;
+};
+const loadCajaConfig = async () => {
+  const r = await api.get('/admin/caja/config');
+  const d = r.data || {};
+  cajaForm.value = {
+    nombre_comercial: d.nombre_comercial || '',
+    ruc: d.ruc || '',
+    direccion: d.direccion || '',
+    telefono: d.telefono || '',
+    yape_numero: d.yape_numero || ''
+  };
+};
+const submitCajaConfig = async () => {
+  const fd = new FormData();
+  fd.append('nombre_comercial', cajaForm.value.nombre_comercial);
+  fd.append('ruc', cajaForm.value.ruc);
+  fd.append('direccion', cajaForm.value.direccion);
+  fd.append('telefono', cajaForm.value.telefono);
+  fd.append('yape_numero', cajaForm.value.yape_numero);
+  if (yapeQrFile.value) fd.append('qr', yapeQrFile.value);
+  const r = await api.post('/admin/caja/config', fd);
+  if (r.data?.success) {
+    alert('Configuración de caja guardada.');
+    await loadCajaConfig();
+  } else {
+    alert('No se pudo guardar la configuración.');
+  }
+};
+const cierreAdmin = ref({ from: '', to: '', data: [] });
+const loadCierreAdmin = async () => {
+  const params = {};
+  if (cierreAdmin.value.from) params.from = cierreAdmin.value.from;
+  if (cierreAdmin.value.to) params.to = cierreAdmin.value.to;
+  const r = await api.get('/admin/reportes/recibos-entregados', { params });
+  cierreAdmin.value.data = r.data || [];
+};
+const exportCierreAdminPDF = () => {
+  const w = window.open('', '_blank');
+  let html = '<html><head><title>Cierre de Caja</title><style>';
+  html += 'body{font-family:Arial,sans-serif;padding:16px;} h1{font-size:20px;margin:0 0 12px;} table{width:100%;border-collapse:collapse;} th,td{border:1px solid #ccc;padding:8px;font-size:12px;} th{background:#f4f4f4;}';
+  html += '</style></head><body>';
+  html += '<h1>Cierre de Caja</h1>';
+  html += '<table><thead><tr><th>ID</th><th>Número</th><th>Tipo</th><th>Subtotal</th><th>IGV</th><th>Total</th><th>Fecha</th><th>Metodo Pago</th></tr></thead><tbody>';
+  cierreAdmin.value.data.forEach(r => {
+    html += '<tr><td>'+r.id+'</td><td>'+r.numero+'</td><td>'+r.tipo+'</td><td>S/. '+Number(r.subtotal||0).toFixed(2)+'</td><td>S/. '+Number(r.igv||0).toFixed(2)+'</td><td>S/. '+Number(r.total||0).toFixed(2)+'</td><td>'+r.fecha+'</td><td>'+(r.metodo_pago||'-')+'</td></tr>';
+  });
+  html += '</tbody></table>';
   html += '</body></html>';
   w.document.write(html);
   w.document.close();
@@ -353,6 +411,7 @@ const exportReportPDF = () => {
         <button :class="['tab-btn', activeTab==='pedidos'?'active':'']" @click="setTab('pedidos')">Pedidos</button>
         <button :class="['tab-btn', activeTab==='usuarios'?'active':'']" @click="setTab('usuarios')">Usuarios</button>
         <button :class="['tab-btn', activeTab==='reportes'?'active':'']" @click="setTab('reportes')">Reportes</button>
+        <button :class="['tab-btn', activeTab==='caja_control'?'active':'']" @click="setTab('caja_control')">Control de Caja</button>
       </div>
 
       <section v-if="activeTab==='dashboard' && loaded.stats" class="dashboard-stats">
@@ -381,7 +440,7 @@ const exportReportPDF = () => {
           <div class="form-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px 40px;">
             <div class="form-group">
               <label style="font-weight: 600; color: #444; margin-bottom: 4px; display: block;">Nombre del Plato</label>
-              <input v-model="form.nombre" class="form-control" placeholder="Ej. Lomo Saltado" required>
+              <input v-model="form.nombre" class="form-control" placeholder="Ej. Monstrito" required>
             </div>
             <div class="form-group">
               <label style="font-weight: 600; color: #444; margin-bottom: 4px; display: block;">Categoría</label>
@@ -537,7 +596,7 @@ const exportReportPDF = () => {
           <div class="form-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px 40px;">
             <div class="form-group">
               <label style="font-weight: 600; color: #444; margin-bottom: 4px; display: block;">Usuario</label>
-              <input v-model="userForm.usuario" class="form-control" placeholder="Ej. jperez" required>
+              <input v-model="userForm.usuario" class="form-control" placeholder="Ej. Yes" required>
             </div>
             <div class="form-group">
               <label style="font-weight: 600; color: #444; margin-bottom: 4px; display: block;">Tipo</label>
@@ -548,14 +607,14 @@ const exportReportPDF = () => {
                 <option value="caja">Caja</option>
               </select>
             </div>
-            <div class="form-group">
-              <label style="font-weight: 600; color: #444; margin-bottom: 4px; display: block;">Nombres</label>
-              <input v-model="userForm.nombres" class="form-control" placeholder="Ej. Juan" required>
-            </div>
-            <div class="form-group">
-              <label style="font-weight: 600; color: #444; margin-bottom: 4px; display: block;">Apellidos</label>
-              <input v-model="userForm.apellidos" class="form-control" placeholder="Ej. Perez" required>
-            </div>
+          <div class="form-group">
+            <label style="font-weight: 600; color: #444; margin-bottom: 4px; display: block;">Nombres</label>
+            <input v-model="userForm.nombres" class="form-control" placeholder="Ej. Jesus" required>
+          </div>
+          <div class="form-group">
+            <label style="font-weight: 600; color: #444; margin-bottom: 4px; display: block;">Apellidos</label>
+            <input v-model="userForm.apellidos" class="form-control" placeholder="Ej. Luna" required>
+          </div>
             <div class="form-group">
               <label style="font-weight: 600; color: #444; margin-bottom: 4px; display: block;">Clave</label>
               <input v-model="userForm.clave" type="password" class="form-control" :required="!userEditing" placeholder="******">
@@ -607,14 +666,14 @@ const exportReportPDF = () => {
             <select v-model="reportType" class="form-control" @change="loadReport">
               <option value="pedidos">Pedidos</option>
               <option value="pedidos_mesero">Pedidos por mesero</option>
-              <option value="recibos_entregados">Recibos entregados</option>
+              <option value="recibos_entregados">Por costo</option>
             </select>
           </div>
-          <div class="control" v-if="reportType!=='recibos_entregados'">
+          <div class="control">
             <label>Desde</label>
             <input v-model="reportFilters.from" type="date" class="form-control" @change="loadReport">
           </div>
-          <div class="control" v-if="reportType!=='recibos_entregados'">
+          <div class="control">
             <label>Hasta</label>
             <input v-model="reportFilters.to" type="date" class="form-control" @change="loadReport">
           </div>
@@ -630,12 +689,16 @@ const exportReportPDF = () => {
             </select>
           </div>
           <div class="control" v-if="reportType==='recibos_entregados'">
-            <label>Tipo Doc.</label>
-            <select v-model="reportFilters.tipo" class="form-control" @change="loadReport">
-              <option value="">Todos</option>
-              <option value="BOLETA">Boleta</option>
-              <option value="FACTURA">Factura</option>
-            </select>
+            <label>Costo mínimo</label>
+            <input v-model="reportFilters.costo_min" type="number" step="0.01" min="0" class="form-control" @change="loadReport">
+          </div>
+          <div class="control" v-if="reportType==='recibos_entregados'">
+            <label>Costo máximo</label>
+            <input v-model="reportFilters.costo_max" type="number" step="0.01" min="0" class="form-control" @change="loadReport">
+          </div>
+          <div class="control" v-if="reportType==='recibos_entregados'">
+            <label>Mesa</label>
+            <input v-model="reportFilters.mesa" type="number" min="1" class="form-control" @change="loadReport">
           </div>
           <div class="control">
             <label>&nbsp;</label>
@@ -643,12 +706,13 @@ const exportReportPDF = () => {
           </div>
         </div>
         <div class="report-preview">
-          <table class="custom-table" v-if="reportType==='pedidos'||reportType==='pedidos_mesero'">
+          <table class="custom-table" v-if="reportType==='pedidos'||reportType==='pedidos_mesero'||reportType==='recibos_entregados'">
             <thead>
               <tr>
                 <th>ID</th>
                 <th>MESA</th>
                 <th>MESERO</th>
+                <th>TIPO</th>
                 <th>DETALLE</th>
                 <th>COSTO</th>
                 <th>FECHA / HORA</th>
@@ -660,6 +724,7 @@ const exportReportPDF = () => {
                 <td style="color: #000">{{ p.id }}</td>
                 <td class="fw-bold" style="color: #000">Mesa {{ p.mesa }}</td>
                 <td style="color: #000">{{ p.mesero || '-' }}</td>
+                <td style="color: #000; text-transform: capitalize;">{{ p.tipo_servicio || 'local' }}</td>
                 <td style="font-size: 0.85rem; color: #000">{{ p.detalle }}</td>
                 <td style="color: #000">S/. {{ Number(p.costo || 0).toFixed(2) }}</td>
                 <td style="color: #000">{{ formatDate(p.fecha) }} {{ formatTime(p.fecha) }}</td>
@@ -671,29 +736,85 @@ const exportReportPDF = () => {
               </tr>
             </tbody>
           </table>
-          <table class="custom-table" v-if="reportType==='recibos_entregados'">
+        </div>
+      </section>
+      <section v-if="activeTab==='caja_control'" class="content-section" style="padding: 20px 40px;">
+        <h2 class="section-title">Control de Caja</h2>
+        <form class="add-form" @submit.prevent="submitCajaConfig" style="padding: 20px;">
+          <div class="form-grid" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px;">
+            <div class="form-group">
+              <label>Nombre Comercial</label>
+              <input v-model="cajaForm.nombre_comercial" class="form-control" required>
+            </div>
+            <div class="form-group">
+              <label>RUC</label>
+              <input v-model="cajaForm.ruc" class="form-control" required>
+            </div>
+            <div class="form-group full-width">
+              <label>Dirección</label>
+              <input v-model="cajaForm.direccion" class="form-control" required>
+            </div>
+            <div class="form-group">
+              <label>Teléfono</label>
+              <input v-model="cajaForm.telefono" class="form-control" required>
+            </div>
+            <div class="form-group">
+              <label>Número Yape</label>
+              <input v-model="cajaForm.yape_numero" class="form-control" required>
+            </div>
+            <div class="form-group full-width">
+              <label>QR Yape</label>
+              <input type="file" class="form-control" accept="image/*" @change="onYapeQrChange">
+            </div>
+          </div>
+          <div class="form-buttons" style="display:flex; gap:10px; justify-content:flex-end;">
+            <button type="submit" class="btn btn-solid-orange">Guardar</button>
+          </div>
+        </form>
+        <div class="report-controls" style="margin-top: 16px;">
+          <div class="control">
+            <label>Desde</label>
+            <input v-model="cierreAdmin.from" type="date" class="form-control" @change="loadCierreAdmin">
+          </div>
+          <div class="control">
+            <label>Hasta</label>
+            <input v-model="cierreAdmin.to" type="date" class="form-control" @change="loadCierreAdmin">
+          </div>
+          <div class="control">
+            <label>&nbsp;</label>
+            <button class="btn btn-solid-orange" @click="exportCierreAdminPDF">Exportar Cierre</button>
+          </div>
+        </div>
+        <div class="report-preview">
+          <table class="custom-table">
             <thead>
               <tr>
                 <th>ID</th>
                 <th>NÚMERO</th>
+                <th>RECIBO</th>
+                <th>MESA</th>
+                <th>DETALLE</th>
                 <th>TIPO</th>
-                <th>TOTAL</th>
                 <th>SUBTOTAL</th>
                 <th>IGV</th>
-                <th>FECHA / HORA</th>
-                <th>VENTA ID</th>
+                <th>TOTAL</th>
+                <th>FECHA</th>
+                <th>TIPO PAGO</th>
               </tr>
             </thead>
             <tbody>
-              <tr v-for="r in reportData" :key="r.id">
-                <td style="color: #000">{{ r.id }}</td>
-                <td class="fw-bold" style="color: #000">{{ r.numero }}</td>
-                <td style="color: #000">{{ r.tipo }}</td>
-                <td style="color: #000">S/. {{ Number(r.total || 0).toFixed(2) }}</td>
-                <td style="color: #000">S/. {{ Number(r.subtotal || 0).toFixed(2) }}</td>
-                <td style="color: #000">S/. {{ Number(r.igv || 0).toFixed(2) }}</td>
-                <td style="color: #000">{{ formatDate(r.fecha) }} {{ formatTime(r.fecha) }}</td>
-                <td style="color: #000">{{ r.venta_id || '-' }}</td>
+              <tr v-for="r in cierreAdmin.data" :key="r.id">
+                <td>{{ r.id }}</td>
+                <td>{{ r.numero }}</td>
+                <td>{{ r.tipo }}</td>
+                <td>{{ r.mesa }}</td>
+                <td style="font-size: 0.85rem;">{{ r.detalle }}</td>
+                <td>{{ r.tipo }}</td>
+                <td>S/. {{ Number(r.subtotal||0).toFixed(2) }}</td>
+                <td>S/. {{ Number(r.igv||0).toFixed(2) }}</td>
+                <td>S/. {{ Number(r.total||0).toFixed(2) }}</td>
+                <td>{{ r.fecha }}</td>
+                <td>{{ r.metodo_pago }}</td>
               </tr>
             </tbody>
           </table>

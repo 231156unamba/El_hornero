@@ -1,15 +1,20 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue';
+import { useRouter } from 'vue-router';
 import api from '../api';
 
+const router = useRouter();
+const apiOrigin = new URL(api.defaults.baseURL).origin;
 const usuarioNombre = ref('Cajero Principal');
 const estadoCaja = ref('Cerrada'); // Abierta, Cerrada
 const cajaId = ref(null);
 const activeTab = ref('mesas'); // mesas, historial
 const selectedMesa = ref(null);
+const cajaConfig = ref({ nombre_comercial: '', ruc: '', direccion: '', telefono: '', yape_numero: '' });
+const tipoComprobante = ref('BOLETA'); // BOLETA, FACTURA
 
 // Configuración de Mesas (Físicas)
-const TOTAL_MESAS = 9; // Definimos 9 mesas por defecto
+const TOTAL_MESAS = 10; // Definimos 9 mesas por defecto
 const mesas = ref([]);
 
 // Historial
@@ -44,9 +49,54 @@ const totalMesaSeleccionada = computed(() => {
 const igv = computed(() => totalMesaSeleccionada.value * 0.18);
 const subtotal = computed(() => totalMesaSeleccionada.value - igv.value);
 
+// Boleta Preview
+const showBoletaPreview = ref(false);
+const boletaData = computed(() => {
+  if (!selectedMesa.value) return null;
+  const items = selectedMesa.value.items || [];
+  const total = items.reduce((acc, i) => acc + (i.precio || 0), 0);
+  const igvVal = total * 0.18;
+  const subVal = total - igvVal;
+  return {
+    mesa: selectedMesa.value.numero,
+    items,
+    subtotal: subVal,
+    igv: igvVal,
+    total,
+    tipo: tipoComprobante.value
+  };
+});
+const openBoleta = () => { if (selectedMesa.value) showBoletaPreview.value = true; };
+const closeBoleta = () => { showBoletaPreview.value = false; };
+
+// Yape Modal
+const showYapeModal = ref(false);
+const openYape = () => { showYapeModal.value = true; };
+const closeYape = () => { showYapeModal.value = false; };
+const confirmarPagoYape = async () => {
+  await procesarPagoSI('Yape');
+  closeYape();
+};
+
+// Cierre por rango
+const cierreFrom = ref('');
+const cierreTo = ref('');
+const cierreList = ref([]);
+const loadCierre = async () => {
+  const params = {};
+  if (cierreFrom.value) params.from = cierreFrom.value;
+  if (cierreTo.value) params.to = cierreTo.value;
+  try {
+    const r = await api.get('/admin/reportes/recibos-entregados', { params });
+    cierreList.value = r.data;
+  } catch (e) { console.error(e); }
+};
+
 // Actions
 const selectMesa = (mesa) => {
     selectedMesa.value = mesa;
+    // Resetear tipo a Boleta por defecto al seleccionar nueva mesa
+    tipoComprobante.value = 'BOLETA';
 };
 
 // Fetch Data Real
@@ -102,22 +152,30 @@ const procesarPagoSI = async (metodo) => {
         return;
     }
 
-    if (!confirm(`¿Confirmar pago de S/ ${totalMesaSeleccionada.value.toFixed(2)} con ${metodo}?`)) return;
+    if (!confirm(`¿Confirmar pago de S/ ${totalMesaSeleccionada.value.toFixed(2)} con ${metodo} (${tipoComprobante.value})?`)) return;
 
     try {
         const montoTotal = totalMesaSeleccionada.value;
         const itemsAActualizar = [...selectedMesa.value.items]; // Copia
 
         // 1. Registrar Venta en Caja
-        await api.post('/caja/venta', { monto: montoTotal });
+        const resVenta = await api.post('/caja/venta', { monto: montoTotal, metodo_pago: metodo });
+        const ventaId = resVenta.data.ventaId;
 
-        // 2. Actualizar estado de los pedidos a 'pagado'
+        // 2. Generar Recibo y marcar ENVIADO (para reflejar en cierre desde BD)
+        try {
+          await api.post('/caja/recibo', { venta_id: ventaId, tipo: tipoComprobante.value });
+        } catch (eRec) {
+          console.error('Recibo error:', eRec);
+        }
+
+        // 3. Actualizar estado de los pedidos a 'pagado' y vincular venta
         const updates = itemsAActualizar.map(item => 
-            api.post('/pedidos/actualizar', { id: item.id, estado: 'pagado' })
+            api.post('/pedidos/actualizar', { id: item.id, estado: 'pagado', venta_id: ventaId })
         );
         await Promise.all(updates);
 
-        // 3. UI Updates
+        // 4. UI Updates
         historialVentas.value.unshift({
             id: Date.now(), // Temp ID
             hora: new Date().toLocaleTimeString('es-PE', {hour: '2-digit', minute:'2-digit'}),
@@ -129,6 +187,7 @@ const procesarPagoSI = async (metodo) => {
 
         // Refetch de pedidos para limpiar la mesa visualmente
         await cargarPedidos();
+        await loadCierre(); // Refrescar cierre con datos de BD
         selectedMesa.value = null; // Deseleccionar
         
         alert("Pago procesado correctamente.");
@@ -169,14 +228,14 @@ const cerrarCaja = async () => {
 };
 
 onMounted(() => {
-    // const rol = localStorage.getItem('rol');
-    // Validation Logic (Commented for dev ease if needed)
-    // if (rol !== 'caja') router.push('/login');
+    const rol = localStorage.getItem('rol');
+    if (rol !== 'caja') { router.push('/login'); return; }
     
     usuarioNombre.value = localStorage.getItem('usuario') || 'Cajero';
     initMesas();
     actualizarEstado();
     cargarPedidos(); // Cargar estado inicial de mesas
+    api.get('/admin/caja/config').then(r => { cajaConfig.value = r.data || {}; }).catch(()=>{});
 
     // Polling opcional para actualizar mesas en tiempo real
     setInterval(cargarPedidos, 5000); 
@@ -190,7 +249,6 @@ onMounted(() => {
     <aside class="pos-sidebar">
       <div class="logo-area">
         <h1>EL HORNERO</h1>
-        <span>POS SYSTEM</span>
       </div>
       
       <nav class="nav-menu">
@@ -204,7 +262,6 @@ onMounted(() => {
             :class="{ active: activeTab === 'historial' }">
             <span class="icon"></span> Historial/Cierre
         </button>
-        <button class="disabled"><span class="icon"></span> Configuración</button>
       </nav>
 
       <div class="user-profile">
@@ -323,6 +380,14 @@ onMounted(() => {
                     </div>
 
                     <div class="payment-actions">
+                        <div style="margin-bottom:15px; display:flex; gap:10px; justify-content:center;">
+                            <label style="display:flex; align-items:center; gap:5px; cursor:pointer;">
+                                <input type="radio" value="BOLETA" v-model="tipoComprobante"> Boleta
+                            </label>
+                            <label style="display:flex; align-items:center; gap:5px; cursor:pointer;">
+                                <input type="radio" value="FACTURA" v-model="tipoComprobante"> Factura
+                            </label>
+                        </div>
                         <h4>Método de Pago</h4>
                         <div class="payment-grid">
                             <button @click="procesarPagoSI('Efectivo')" class="pay-btn cash">
@@ -331,13 +396,13 @@ onMounted(() => {
                             <button @click="procesarPagoSI('Tarjeta')" class="pay-btn card">
                                 Tarjeta
                             </button>
-                            <button @click="procesarPagoSI('Yape')" class="pay-btn digital">
-                                 Yape/Plin
+                            <button @click="openYape" class="pay-btn digital">
+                                 Yape
                             </button>
                         </div>
                         
                         <div class="secondary-actions">
-                            <button class="btn-sec">🖨️ Pre-Cuenta</button>
+                            <button class="btn-sec" @click="openBoleta">🧾 Ver Recibo</button>
                             <button class="btn-sec" @click="selectedMesa = null">Cancelar</button>
                         </div>
                     </div>
@@ -349,36 +414,113 @@ onMounted(() => {
         <div v-if="activeTab === 'historial'" class="view-historial">
             <div class="card history-card">
                 <div class="card-header">
-                    <h2>Historial de Movimientos</h2>
-                    <button class="btn-export">Exportar Reporte</button>
+                    <h2>Historial / Cierre por Rango</h2>
+                    <div class="filters">
+                      <label>Desde</label>
+                      <input type="date" v-model="cierreFrom" @change="loadCierre">
+                      <label>Hasta</label>
+                      <input type="date" v-model="cierreTo" @change="loadCierre">
+                      <button class="btn-export" @click="loadCierre">Cargar</button>
+                    </div>
                 </div>
                 <div class="table-responsive">
                     <table class="data-table">
                         <thead>
                             <tr>
-                                <th># Op</th>
-                                <th>Hora</th>
+                                <th>ID</th>
+                                <th>Número</th>
+                                <th>Recibo</th>
+                                <th>Mesa</th>
                                 <th>Detalle</th>
-                                <th>Método</th>
-                                <th>Estado</th>
-                                <th class="text-right">Total</th>
+                                <th>Subtotal</th>
+                                <th>IGV</th>
+                                <th>Total</th>
+                                <th>Fecha</th>
+                                <th>Tipo Pago</th>
                             </tr>
                         </thead>
                         <tbody>
-                            <tr v-for="venta in historialVentas" :key="venta.id">
-                                <td>{{ venta.id }}</td>
-                                <td>{{ venta.hora }}</td>
-                                <td>{{ venta.detalle }}</td>
-                                <td><span class="badge-method">{{ venta.metodo }}</span></td>
-                                <td>
-                                    <span class="status-pill completed">✔ {{ venta.estado }}</span>
-                                </td>
-                                <td class="text-right font-bold">S/ {{ venta.total.toFixed(2) }}</td>
+                            <tr v-for="r in cierreList" :key="r.id">
+                                <td>{{ r.id }}</td>
+                                <td class="fw-bold">{{ r.numero }}</td>
+                                <td>{{ r.tipo }}</td>
+                                <td>{{ r.mesa }}</td>
+                                <td style="font-size: 0.85rem;">{{ r.detalle }}</td>
+                                <td>S/ {{ Number(r.subtotal || 0).toFixed(2) }}</td>
+                                <td>S/ {{ Number(r.igv || 0).toFixed(2) }}</td>
+                                <td class="text-right font-bold">S/ {{ Number(r.total || 0).toFixed(2) }}</td>
+                                <td>{{ r.fecha }}</td>
+                                <td>{{ r.metodo_pago || '-' }}</td>
                             </tr>
                         </tbody>
                     </table>
+                    <div class="resume" v-if="cierreList.length">
+                      <span>Total Operaciones: {{ cierreList.length }}</span>
+                      <span style="margin-left:20px;">Total Ventas: S/ {{ cierreList.reduce((a,b)=>a + Number(b.total||0),0).toFixed(2) }}</span>
+                    </div>
                 </div>
             </div>
+        </div>
+
+        <!-- Modal: Boleta Preview -->
+        <div v-if="showBoletaPreview" class="modal-overlay" @click.self="closeBoleta">
+          <div class="modal-card">
+            <div class="modal-header">
+              <h3>{{ boletaData?.tipo || 'Recibo' }} - {{ boletaData?.mesa }}</h3>
+              <button class="close-btn" @click="closeBoleta">✕</button>
+            </div>
+            <div class="modal-body">
+              <div class="boleta" id="boleta-content" style="background:white; padding:15px;">
+                <div class="boleta-header">
+                  <h4>{{ cajaConfig.nombre_comercial || 'EL HORNERO' }}</h4>
+                  <p>RUC: {{ cajaConfig.ruc || '' }}</p>
+                  <p>Dirección: {{ cajaConfig.direccion || '' }}</p>
+                  <p>{{ new Date().toLocaleString('es-PE') }}</p>
+                  <p style="font-weight:bold; margin-top:5px;">{{ boletaData?.tipo }} DE VENTA</p>
+                </div>
+                <table class="boleta-table">
+                  <thead>
+                    <tr><th>Detalle</th><th class="text-right">Precio</th></tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="i in boletaData?.items || []" :key="i.id">
+                      <td>{{ i.cantidad }}x {{ i.nombre }}</td>
+                      <td class="text-right">S/ {{ Number(i.precio || 0).toFixed(2) }}</td>
+                    </tr>
+                  </tbody>
+                </table>
+                <div class="boleta-totals">
+                  <div><span>Subtotal</span><span>S/ {{ Number(boletaData?.subtotal||0).toFixed(2) }}</span></div>
+                  <div><span>IGV (18%)</span><span>S/ {{ Number(boletaData?.igv||0).toFixed(2) }}</span></div>
+                  <div class="total"><span>Total</span><span>S/ {{ Number(boletaData?.total||0).toFixed(2) }}</span></div>
+                </div>
+              </div>
+            </div>
+            <div class="modal-footer">
+              <button class="btn-sec" @click="closeBoleta">Cerrar</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Modal: Yape QR -->
+        <div v-if="showYapeModal" class="modal-overlay" @click.self="closeYape">
+          <div class="modal-card">
+            <div class="modal-header">
+              <h3>Pagar con Yape</h3>
+              <button class="close-btn" @click="closeYape">✕</button>
+            </div>
+            <div class="modal-body" style="text-align:center;">
+              <img :src="apiOrigin + '/images/qr/yape.png'" alt="QR Yape" style="max-width:280px; border:1px solid #eee; border-radius:8px;" @error="$event.target.style.display='none'">
+              <p style="color:#6b7280; margin-top:10px;">Escanee el código QR para realizar el pago.</p>
+              <p v-if="cajaConfig.yape_numero" style="font-weight:bold; font-size:1.2rem; margin-top: 5px; color:#111827;">
+                  {{ cajaConfig.yape_numero }}
+              </p>
+            </div>
+            <div class="modal-footer" style="display:flex; justify-content:flex-end; gap:10px;">
+              <button class="btn-sec" @click="closeYape">Cancelar</button>
+              <button class="pay-btn digital" @click="confirmarPagoYape">Confirmar pago Yape</button>
+            </div>
+          </div>
         </div>
 
     </main>
@@ -821,6 +963,15 @@ onMounted(() => {
     border-radius: 6px;
     cursor: pointer;
 }
+.filters {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.resume {
+  margin-top: 10px;
+  font-weight: 600;
+}
 .table-responsive {
     overflow-x: auto;
 }
@@ -858,4 +1009,78 @@ onMounted(() => {
 .text-right { text-align: right; }
 .font-bold { font-weight: 700; }
 
+/* Modals */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+}
+.modal-card {
+  width: 640px;
+  max-width: 95vw;
+  background: white;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+}
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  background: #111827;
+  color: white;
+}
+.modal-body {
+  padding: 18px;
+}
+.modal-footer {
+  padding: 12px 18px;
+  border-top: 1px solid #eee;
+}
+.close-btn {
+  background: transparent;
+  border: none;
+  color: white;
+  font-size: 18px;
+  cursor: pointer;
+}
+.boleta {
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  overflow: hidden;
+}
+.boleta-header {
+  padding: 12px 14px;
+  background: #f9fafb;
+  border-bottom: 1px solid #eee;
+  text-align: center;
+}
+.boleta-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.boleta-table th, .boleta-table td {
+  border-bottom: 1px solid #f1f5f9;
+  padding: 8px 10px;
+}
+.boleta-table th {
+  background: #f8fafc;
+  text-align: left;
+}
+.boleta-totals {
+  padding: 10px 14px;
+}
+.boleta-totals > div {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 6px;
+}
+.boleta-totals .total {
+  font-weight: 800;
+}
 </style>

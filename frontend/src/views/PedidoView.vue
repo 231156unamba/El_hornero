@@ -30,9 +30,8 @@ const mesasOcupadas = computed(() => {
 
 // Verificar sesión
 onMounted(async () => {
-  // const rol = localStorage.getItem('rol');
-  // Validation logic (commented for flexibility during dev)
-  // if (rol !== 'pedido') { router.push('/login'); return; }
+  const rol = localStorage.getItem('rol');
+  if (rol !== 'pedido') { router.push('/login'); return; }
   
   usuarioNombre.value = localStorage.getItem('usuario') || 'Mesero';
   
