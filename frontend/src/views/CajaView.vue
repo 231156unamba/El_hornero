@@ -81,11 +81,17 @@ const confirmarPagoYape = async () => {
 // Cierre por rango
 const cierreFrom = ref('');
 const cierreTo = ref('');
+const cierreNumero = ref('');
+const cierreMesa = ref('');
+const cierreTipo = ref('');
 const cierreList = ref([]);
 const loadCierre = async () => {
   const params = {};
   if (cierreFrom.value) params.from = cierreFrom.value;
   if (cierreTo.value) params.to = cierreTo.value;
+  if (cierreNumero.value) params.numero = cierreNumero.value;
+  if (cierreMesa.value) params.mesa = cierreMesa.value;
+  if (cierreTipo.value) params.tipo = cierreTipo.value;
   try {
     const r = await api.get('/admin/reportes/recibos-entregados', { params });
     cierreList.value = r.data;
@@ -154,22 +160,33 @@ const procesarPagoSI = async (metodo) => {
 
     if (!confirm(`¿Confirmar pago de S/ ${totalMesaSeleccionada.value.toFixed(2)} con ${metodo} (${tipoComprobante.value})?`)) return;
 
+    // Abrir ventana inmediatamente para evitar bloqueador de popups
+    const printWindow = window.open('', '_blank');
+    if (printWindow) {
+        printWindow.document.write('<html><body><h3>Procesando pago y generando recibo...</h3></body></html>');
+    }
+
     try {
         const montoTotal = totalMesaSeleccionada.value;
         const itemsAActualizar = [...selectedMesa.value.items]; // Copia
 
         // 1. Registrar Venta en Caja
-        const resVenta = await api.post('/caja/venta', { monto: montoTotal, metodo_pago: metodo });
+        const pedidoIds = itemsAActualizar.map(item => item.id);
+        const resVenta = await api.post('/caja/venta', { 
+            monto: montoTotal, 
+            metodo_pago: metodo,
+            pedido_ids: pedidoIds 
+        });
         const ventaId = resVenta.data.ventaId;
 
-        // 2. Generar Recibo y marcar ENVIADO (para reflejar en cierre desde BD)
+        // 2. Generar Recibo
         try {
           await api.post('/caja/recibo', { venta_id: ventaId, tipo: tipoComprobante.value });
         } catch (eRec) {
           console.error('Recibo error:', eRec);
         }
 
-        // 3. Actualizar estado de los pedidos a 'pagado' y vincular venta
+        // 3. Actualizar Pedidos
         const updates = itemsAActualizar.map(item => 
             api.post('/pedidos/actualizar', { id: item.id, estado: 'pagado', venta_id: ventaId })
         );
@@ -177,7 +194,7 @@ const procesarPagoSI = async (metodo) => {
 
         // 4. UI Updates
         historialVentas.value.unshift({
-            id: Date.now(), // Temp ID
+            id: Date.now(),
             hora: new Date().toLocaleTimeString('es-PE', {hour: '2-digit', minute:'2-digit'}),
             detalle: `Mesa ${selectedMesa.value.numero}`,
             total: montoTotal,
@@ -185,15 +202,21 @@ const procesarPagoSI = async (metodo) => {
             estado: 'Completado'
         });
 
-        // Refetch de pedidos para limpiar la mesa visualmente
+        // 5. Imprimir en la ventana ya abierta
+        imprimirRecibo(printWindow);
+
+        // Refetch de pedidos
         await cargarPedidos();
-        await loadCierre(); // Refrescar cierre con datos de BD
-        selectedMesa.value = null; // Deseleccionar
-        
-        alert("Pago procesado correctamente.");
+        await loadCierre(); 
+
+        // Limpiar selección
+        setTimeout(() => {
+            selectedMesa.value = null; 
+        }, 1000);
 
     } catch (e) {
         console.error(e);
+        if (printWindow) printWindow.close(); // Cerrar si hubo error
         alert("Error al procesar el pago.");
     }
 };
@@ -227,7 +250,117 @@ const cerrarCaja = async () => {
     } catch(e) { console.error(e); alert('Error cerrando caja'); }
 };
 
-onMounted(() => {
+    // Exportar Historial
+    const exportHistorialPDF = () => {
+        if (!cierreList.value.length) {
+            alert('No hay datos para exportar.');
+            return;
+        }
+        const w = window.open('', '_blank');
+        let html = '<html><head><title>Historial Cierre de Caja</title><style>';
+        html += 'body{font-family:Arial,sans-serif;padding:16px;} h1{font-size:20px;margin:0 0 12px;} table{width:100%;border-collapse:collapse;} th,td{border:1px solid #ccc;padding:8px;font-size:12px;} th{background:#f4f4f4;} .text-right{text-align:right;}';
+        html += '</style></head><body>';
+        html += '<h1>Historial / Cierre de Caja</h1>';
+        html += `<p><strong>Desde:</strong> ${cierreFrom.value || '-'} <strong>Hasta:</strong> ${cierreTo.value || '-'}</p>`;
+        html += '<table><thead><tr><th>ID</th><th>Número</th><th>Recibo</th><th>Mesa</th><th>Detalle</th><th>Subtotal</th><th>IGV</th><th>Total</th><th>Fecha</th><th>Tipo Pago</th></tr></thead><tbody>';
+        
+        cierreList.value.forEach(r => {
+            html += `<tr>
+                <td>${r.id}</td>
+                <td>${r.numero}</td>
+                <td>${r.tipo}</td>
+                <td>${r.mesa}</td>
+                <td>${r.detalle}</td>
+                <td class="text-right">S/ ${Number(r.subtotal || 0).toFixed(2)}</td>
+                <td class="text-right">S/ ${Number(r.igv || 0).toFixed(2)}</td>
+                <td class="text-right">S/ ${Number(r.total || 0).toFixed(2)}</td>
+                <td>${r.fecha}</td>
+                <td>${r.metodo_pago || '-'}</td>
+            </tr>`;
+        });
+        
+        html += '</tbody></table>';
+        
+        // Totales
+        const totalVentas = cierreList.value.reduce((a,b) => a + Number(b.total||0), 0);
+        html += `<div style="margin-top:20px; font-weight:bold; text-align:right;">
+            Total Ventas: S/ ${totalVentas.toFixed(2)}
+        </div>`;
+
+        html += '</body></html>';
+        w.document.write(html);
+        w.document.close();
+        w.focus();
+        w.print();
+    };
+
+    // Imprimir Recibo Individual (Boleta Modal)
+    const imprimirRecibo = (existingWindow = null) => {
+        if (!boletaData.value) {
+            if (existingWindow) existingWindow.close();
+            return;
+        }
+        
+        let w;
+        if (existingWindow) {
+            w = existingWindow;
+        } else {
+             // Fallback for manual click
+            w = window.open('', '_blank');
+        }
+        
+        const d = boletaData.value;
+        const conf = cajaConfig.value;
+        
+        let html = '<html><head><title>Imprimir Recibo</title><style>';
+        html += 'body{font-family:Courier,monospace;padding:10px;width:300px;margin:0 auto;}';
+        html += '.header{text-align:center;margin-bottom:10px;}';
+        html += '.header h2{margin:0;font-size:16px;}';
+        html += '.header p{margin:2px 0;font-size:12px;}';
+        html += 'table{width:100%;font-size:12px;}';
+        html += 'th,td{text-align:left;padding:2px 0;}';
+        html += '.text-right{text-align:right;}';
+        html += '.totals{margin-top:10px;border-top:1px dashed #000;padding-top:5px;font-size:12px;}';
+        html += '.totals div{display:flex;justify-content:space-between;}';
+        html += '</style></head><body>';
+        
+        html += `<div class="header">
+            <h2>${conf.nombre_comercial || 'EL HORNERO'}</h2>
+            <p>RUC: ${conf.ruc || ''}</p>
+            <p>${conf.direccion || ''}</p>
+            <p>Tel: ${conf.telefono || ''}</p>
+            <hr style="border:0;border-top:1px dashed #000;margin:10px 0;">
+            <p><strong>${d.tipo} DE VENTA</strong></p>
+            <p>Mesa: ${d.mesa}</p>
+            <p>Fecha: ${new Date().toLocaleString('es-PE')}</p>
+        </div>`;
+        
+        html += '<table><thead><tr><th>Cant. Desc.</th><th class="text-right">Imp.</th></tr></thead><tbody>';
+        d.items.forEach(i => {
+             html += `<tr>
+                <td>${i.cantidad} x ${i.nombre}</td>
+                <td class="text-right">${Number(i.precio||0).toFixed(2)}</td>
+             </tr>`;
+        });
+        html += '</tbody></table>';
+        
+        html += `<div class="totals">
+            <div><span>Subtotal:</span><span>S/ ${Number(d.subtotal||0).toFixed(2)}</span></div>
+            <div><span>IGV (18%):</span><span>S/ ${Number(d.igv||0).toFixed(2)}</span></div>
+            <div style="font-weight:bold;margin-top:5px;"><span>TOTAL:</span><span>S/ ${Number(d.total||0).toFixed(2)}</span></div>
+        </div>`;
+        
+        html += '<div style="text-align:center;margin-top:20px;font-size:11px;">¡Gracias por su preferencia!</div>';
+        
+        html += '</body></html>';
+        
+        w.document.write(html);
+        w.document.close();
+        w.focus();
+        setTimeout(() => { w.print(); }, 500);
+    };
+
+    onMounted(() => {
     const rol = localStorage.getItem('rol');
     if (rol !== 'caja') { router.push('/login'); return; }
     
@@ -414,13 +547,34 @@ onMounted(() => {
         <div v-if="activeTab === 'historial'" class="view-historial">
             <div class="card history-card">
                 <div class="card-header">
-                    <h2>Historial / Cierre por Rango</h2>
+                    <h2>Historial de Boletas / Facturas</h2>
                     <div class="filters">
-                      <label>Desde</label>
-                      <input type="date" v-model="cierreFrom" @change="loadCierre">
-                      <label>Hasta</label>
-                      <input type="date" v-model="cierreTo" @change="loadCierre">
+                      <div class="filter-group">
+                        <label>Desde</label>
+                        <input type="date" v-model="cierreFrom" @change="loadCierre">
+                      </div>
+                      <div class="filter-group">
+                        <label>Hasta</label>
+                        <input type="date" v-model="cierreTo" @change="loadCierre">
+                      </div>
+                      <div class="filter-group">
+                        <label>N° Comprobante</label>
+                        <input type="text" v-model="cierreNumero" @input="loadCierre" placeholder="Ej: R20260708000001">
+                      </div>
+                      <div class="filter-group">
+                        <label>Mesa</label>
+                        <input type="number" v-model="cierreMesa" @input="loadCierre" placeholder="Ej: 1" min="1">
+                      </div>
+                      <div class="filter-group">
+                        <label>Tipo</label>
+                        <select v-model="cierreTipo" @change="loadCierre">
+                          <option value="">Todos</option>
+                          <option value="BOLETA">Boleta</option>
+                          <option value="FACTURA">Factura</option>
+                        </select>
+                      </div>
                       <button class="btn-export" @click="loadCierre">Cargar</button>
+                      <button class="btn-export" style="background:#555; margin-left:10px;" @click="exportHistorialPDF">🖨 Exportar</button>
                     </div>
                 </div>
                 <div class="table-responsive">
@@ -429,13 +583,14 @@ onMounted(() => {
                             <tr>
                                 <th>ID</th>
                                 <th>Número</th>
-                                <th>Recibo</th>
+                                <th>Tipo</th>
                                 <th>Mesa</th>
                                 <th>Detalle</th>
                                 <th>Subtotal</th>
                                 <th>IGV</th>
                                 <th>Total</th>
                                 <th>Fecha</th>
+                                <th>Estado SUNAT</th>
                                 <th>Tipo Pago</th>
                             </tr>
                         </thead>
@@ -449,7 +604,12 @@ onMounted(() => {
                                 <td>S/ {{ Number(r.subtotal || 0).toFixed(2) }}</td>
                                 <td>S/ {{ Number(r.igv || 0).toFixed(2) }}</td>
                                 <td class="text-right font-bold">S/ {{ Number(r.total || 0).toFixed(2) }}</td>
-                                <td>{{ r.fecha }}</td>
+                                <td>{{ new Date(r.fecha).toLocaleString('es-PE') }}</td>
+                                <td>
+                                    <span :class="{'badge-method': true, 'bg-yellow-100': r.estado_sunat === 'PENDIENTE', 'bg-green-100': r.estado_sunat === 'GENERADO' || r.estado_sunat === 'ACEPTADO'}">
+                                        {{ r.estado_sunat }}
+                                    </span>
+                                </td>
                                 <td>{{ r.metodo_pago || '-' }}</td>
                             </tr>
                         </tbody>
@@ -491,12 +651,13 @@ onMounted(() => {
                 </table>
                 <div class="boleta-totals">
                   <div><span>Subtotal</span><span>S/ {{ Number(boletaData?.subtotal||0).toFixed(2) }}</span></div>
-                  <div><span>IGV (18%)</span><span>S/ {{ Number(boletaData?.igv||0).toFixed(2) }}</span></div>
+                  <div><span>IGV (18%):</span><span>S/ {{ Number(boletaData?.igv||0).toFixed(2) }}</span></div>
                   <div class="total"><span>Total</span><span>S/ {{ Number(boletaData?.total||0).toFixed(2) }}</span></div>
                 </div>
               </div>
             </div>
-            <div class="modal-footer">
+            <div class="modal-footer" style="justify-content: space-between;">
+              <button class="btn-sec" @click="imprimirRecibo">🖨 Imprimir</button>
               <button class="btn-sec" @click="closeBoleta">Cerrar</button>
             </div>
           </div>
@@ -965,8 +1126,19 @@ onMounted(() => {
 }
 .filters {
   display: flex;
-  align-items: center;
-  gap: 10px;
+  align-items: flex-end;
+  gap: 15px;
+  flex-wrap: wrap;
+}
+.filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.filter-group label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #6b7280;
 }
 .resume {
   margin-top: 10px;

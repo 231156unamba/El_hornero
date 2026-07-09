@@ -1,0 +1,249 @@
+.admin-page {
+    font-family: 'Segoe UI', Arial, sans-serif;
+    background: #f8f9fa;
+    min-height: 100vh;
+}
+
+.admin-page .topbar {
+    background-color: #111827 !important;
+    padding: 15px 30px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.admin-page .logo {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.admin-page .logo img {
+    height: 80px;
+}
+
+.admin-page .logo h1 {
+    font-size: 25px;
+    color: #f1af32;
+    font-weight: 700;
+    margin: 0;
+}
+
+.admin-page .user-actions {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.admin-page .user-profile {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: #f8f9fa;
+    padding: 8px 12px;
+    border-radius: 20px;
+}
+
+.admin-page .user-avatar {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: #f1af32;
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 14px;
+}
+
+.admin-page .logout-btn {
+    background: #e53935;
+    color: white;
+    border: none;
+    padding: 8px 14px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 600;
+}
+
+.admin-page .content-area {
+    padding: 20px;
+}
+
+.admin-page .tabs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 14px;
+}
+
+.admin-page .tab-btn {
+    padding: 8px 14px;
+    border-radius: 8px;
+    border: 1px solid #eee;
+    background: #fff;
+    cursor: pointer;
+    font-weight: 600;
+    color: #6e6e6e;
+}
+
+.admin-page .tab-btn.active {
+    border-color: #ffcc80;
+    color: #f1af32;
+    background: #fff9f0;
+}
+
+.admin-page .dashboard-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 18px;
+    margin-bottom: 20px;
+}
+
+.admin-page .stat-card {
+    background: white;
+    border-radius: 12px;
+    padding: 16px;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.08);
+    border-top: 4px solid #f1af32;
+}
+
+.admin-page .stat-value {
+    font-size: 28px;
+    font-weight: 700;
+    color: #f1af32;
+}
+
+.admin-page .stat-label {
+    color: #6e6e6e;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.admin-page .content-section {
+    background: white;
+    border-radius: 12px;
+    padding: 16px;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.08);
+    margin-bottom: 18px;
+}
+
+.admin-page .charts-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 16px;
+}
+
+.admin-page .chart-card {
+    background: #fff;
+    border: 1px solid #eee;
+    border-radius: 12px;
+    padding: 12px;
+}
+
+.admin-page .no-data {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 220px;
+    color: #6e6e6e;
+    font-weight: 600;
+    background: #fafafa;
+    border: 1px dashed #ddd;
+    border-radius: 8px;
+}
+
+.admin-page .section-title {
+    font-size: 18px;
+    color: #f1af32;
+    margin-bottom: 12px;
+    border-bottom: 2px solid #ffcc80;
+    padding-bottom: 8px;
+}
+
+.admin-page .add-form {
+    background: #f8f9ff;
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 16px;
+    border: 1px solid #e0e0ff;
+}
+
+.admin-page .form-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+    margin-bottom: 10px;
+}
+
+.admin-page .form-group {
+    display: flex;
+    flex-direction: column;
+}
+
+.admin-page .form-group.full-width {
+    grid-column: 1 / -1;
+}
+
+.admin-page .form-control {
+    padding: 10px 12px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    font-size: 1rem;
+    background: white;
+}
+
+.admin-page .form-buttons {
+    display: flex;
+    gap: 12px;
+    margin-top: 8px;
+}
+
+.admin-page .btn {
+    padding: 10px 16px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 600;
+}
+
+.admin-page .btn-primary {
+    background: #f1af32;
+    color: white;
+    border: none;
+}
+
+.admin-page .btn-primary:hover {
+    background: #e6a42b;
+}
+
+.admin-page .btn-success {
+    background: #4caf50;
+    color: white;
+}
+
+.admin-page .btn-danger {
+    background: #e53935;
+    color: white;
+}
+
+.admin-page .btn-warning {
+    background: #ff9800;
+    color: white;
+}
+
+.admin-page .menu-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 16px;
+}
+
+.admin-page .menu-item {
+    background: white;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 3px 10px rgba(0,0,0,0.08);
+    border: 1px solid #eee;
+}

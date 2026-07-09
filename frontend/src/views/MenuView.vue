@@ -7,6 +7,9 @@ const loading = ref(true);
 const selectedCat = ref('comida');
 const apiOrigin = new URL(api.defaults.baseURL).origin;
 const filteredMenu = computed(() => {
+  if (selectedCat.value === 'promociones') {
+    return menu.value.filter(m => m.discount_percentage);
+  }
   return menu.value.filter(m => (m.categoria || 'comida') === selectedCat.value);
 });
 
@@ -48,6 +51,7 @@ onMounted(() => {
       <div class="category-tabs">
         <button :class="['cat-btn', selectedCat==='comida'?'active':'']" @click="selectedCat='comida'">Comidas</button>
         <button :class="['cat-btn', selectedCat==='bebidas'?'active':'']" @click="selectedCat='bebidas'">Bebidas</button>
+        <button :class="['cat-btn', selectedCat==='promociones'?'active':'']" @click="selectedCat='promociones'">Promociones</button>
       </div>
     </div>
     <div class="container">
@@ -58,7 +62,15 @@ onMounted(() => {
         <div v-for="plato in filteredMenu" :key="plato.id" class="menu-item">
           <div class="thumb">
             <img :src="menuImageUrl(plato)" :alt="plato.nombre" @error="imgFallback">
-            <div class="price-badge">S/. {{ parseFloat(plato.precio).toFixed(2) }}</div>
+            <div class="price-badge">
+              <span v-if="plato.discount_percentage" style="text-decoration: line-through; font-size: 0.8em; margin-right: 5px;">
+                S/. {{ parseFloat(plato.precio).toFixed(2) }}
+              </span>
+              S/. {{ plato.discount_percentage ? (parseFloat(plato.precio) * (1 - plato.discount_percentage / 100)).toFixed(2) : parseFloat(plato.precio).toFixed(2) }}
+              <span v-if="plato.discount_percentage" style="background: #ef5350; color: white; padding: 2px 6px; border-radius: 4px; font-size: 0.75em; margin-left: 5px;">
+                -{{ plato.discount_percentage }}%
+              </span>
+            </div>
           </div>
           <div class="menu-content">
             <div class="chip" v-if="plato.categoria">{{ plato.categoria }}</div>
@@ -118,7 +130,7 @@ onMounted(() => {
   transition: transform .15s ease, background .15s ease, box-shadow .15s ease, color .15s ease, border-color .15s ease;
 }
 .cat-btn.active {
-  background: linear-gradient(135deg, #e65100 0%, #ff6f00 100%);
+  background: linear-gradient(135deg, #e65100 0%, #8a3d02 100%);
   color: #fff;
   border-color: #e65100;
   transform: scale(1.06);
@@ -185,7 +197,7 @@ onMounted(() => {
   display: inline-block;
   padding: 6px 10px;
   border-radius: 999px;
-  background: linear-gradient(135deg, #ffe0b2 0%, #ffcc80 100%);
+  background: linear-gradient(135deg, #ffe0b2 0%, #ffb380 100%);
   color: #6b4e3d;
   font-weight: 600;
   font-size: clamp(11px, 3.5vw, 12px);

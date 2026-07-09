@@ -12,6 +12,11 @@ const apiOrigin = new URL(api.defaults.baseURL).origin;
 const stats = ref({ pedidosHoy: 0, ventasHoy: 0, totalClientes: 0, pedidosPendientes: 0 });
 const recientes = ref([]);
 const form = ref({ id: null, nombre: '', precio: '', categoria: 'comida', descripcion: '' });
+
+// Discount modal state
+const showDiscountModal = ref(false);
+const discountItem = ref(null);
+const discountForm = ref({ discount_percentage: '', discount_expires_at: '' });
 const menu = ref([]);
 const editing = ref(false);
 const activeTab = ref('dashboard');
@@ -227,7 +232,13 @@ const submitMenu = async () => {
 };
 const editItem = (item) => {
   editing.value = true;
-  form.value = { id: item.id, nombre: item.nombre, precio: item.precio, categoria: item.categoria || 'comida', descripcion: item.descripcion };
+  form.value = {
+    id: item.id,
+    nombre: item.nombre,
+    precio: item.precio,
+    categoria: item.categoria || 'comida',
+    descripcion: item.descripcion,
+  };
   imagenFile.value = null;
   currentImageUrl.value = menuImageUrl(item) || null;
 };
@@ -248,6 +259,42 @@ const clearForm = () => {
 const logout = () => {
   localStorage.clear();
   router.push('/login');
+};
+
+// Discount management
+const openDiscountModal = (item) => {
+  discountItem.value = item;
+  discountForm.value.discount_percentage = item.discount_percentage || '';
+  discountForm.value.discount_expires_at = item.discount_expires_at ? item.discount_expires_at.split(' ')[0] : '';
+  showDiscountModal.value = true;
+};
+
+const closeDiscountModal = () => {
+  showDiscountModal.value = false;
+  discountItem.value = null;
+  discountForm.value = { discount_percentage: '', discount_expires_at: '' };
+};
+
+const submitDiscount = async () => {
+  try {
+    const fd = new FormData();
+    fd.append('discount_percentage', discountForm.value.discount_percentage);
+    if (discountForm.value.discount_expires_at) {
+      fd.append('discount_expires_at', discountForm.value.discount_expires_at);
+    }
+    fd.append('_method', 'PUT');
+    const r = await api.post(`/menu/${discountItem.value.id}`, fd);
+    if (!r.data?.success) {
+      alert(r.data?.error || 'Error al guardar la oferta');
+      return;
+    }
+    await loadMenu();
+    closeDiscountModal();
+    alert('Oferta guardada correctamente');
+  } catch (err) {
+    console.error(err);
+    alert('Error al guardar la oferta');
+  }
 };
 
 const loadReport = async () => {
@@ -447,6 +494,7 @@ const exportCierreAdminPDF = () => {
               <select v-model="form.categoria" class="form-control" required>
                 <option value="comida">Comida</option>
                 <option value="bebidas">Bebidas</option>
+                <option value="promociones">Promociones</option>
               </select>
             </div>
             <div class="form-group">
@@ -480,11 +528,20 @@ const exportCierreAdminPDF = () => {
             <div class="menu-content">
               <div class="menu-header">
                 <div class="nombre">{{ item.nombre }}</div>
-                <div class="precio">S/. {{ item.precio }}</div>
+                <div class="precio">
+                  <span v-if="item.discount_percentage" style="text-decoration: line-through; color: #777; font-size: 0.8em; margin-right: 5px;">
+                    S/. {{ item.precio }}
+                  </span>
+                  S/. {{ item.discount_percentage ? (item.precio * (1 - item.discount_percentage / 100)).toFixed(2) : item.precio }}
+                  <span v-if="item.discount_percentage" style="background: #ef5350; color: white; padding: 2px 6px; border-radius: 4px; font-size: 0.75em; margin-left: 5px;">
+                    -{{ item.discount_percentage }}%
+                  </span>
+                </div>
               </div>
               <div class="descripcion">{{ item.descripcion }}</div>
               <div class="menu-actions">
                 <button class="btn btn-success" @click="editItem(item)">Editar</button>
+                <button class="btn" style="background: #ffc107; color: #333;" @click="openDiscountModal(item)">Oferta</button>
                 <button class="btn btn-danger" @click="deleteItem(item)">Eliminar</button>
               </div>
             </div>
@@ -498,11 +555,47 @@ const exportCierreAdminPDF = () => {
             <div class="menu-content">
               <div class="menu-header">
                 <div class="nombre">{{ item.nombre }}</div>
-                <div class="precio">S/. {{ item.precio }}</div>
+                <div class="precio">
+                  <span v-if="item.discount_percentage" style="text-decoration: line-through; color: #777; font-size: 0.8em; margin-right: 5px;">
+                    S/. {{ item.precio }}
+                  </span>
+                  S/. {{ item.discount_percentage ? (item.precio * (1 - item.discount_percentage / 100)).toFixed(2) : item.precio }}
+                  <span v-if="item.discount_percentage" style="background: #ef5350; color: white; padding: 2px 6px; border-radius: 4px; font-size: 0.75em; margin-left: 5px;">
+                    -{{ item.discount_percentage }}%
+                  </span>
+                </div>
               </div>
               <div class="descripcion">{{ item.descripcion }}</div>
               <div class="menu-actions">
                 <button class="btn btn-success" @click="editItem(item)">Editar</button>
+                <button class="btn" style="background: #ffc107; color: #333;" @click="openDiscountModal(item)">Oferta</button>
+                <button class="btn btn-danger" @click="deleteItem(item)">Eliminar</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <h3 style="margin: 40px 0 15px; color: #f1af32; font-size: 1.3rem; border-bottom: 1px solid #eee; padding-bottom: 10px;">Promociones</h3>
+        <div class="menu-list">
+          <div class="menu-item" v-for="item in menu.filter(i => (i.categoria || '').toLowerCase() === 'promociones')" :key="item.id">
+            <img :src="menuImageUrl(item)" alt="" @error="imgFallback">
+            <div class="menu-content">
+              <div class="menu-header">
+                <div class="nombre">{{ item.nombre }}</div>
+                <div class="precio">
+                  <span v-if="item.discount_percentage" style="text-decoration: line-through; color: #777; font-size: 0.8em; margin-right: 5px;">
+                    S/. {{ item.precio }}
+                  </span>
+                  S/. {{ item.discount_percentage ? (item.precio * (1 - item.discount_percentage / 100)).toFixed(2) : item.precio }}
+                  <span v-if="item.discount_percentage" style="background: #ef5350; color: white; padding: 2px 6px; border-radius: 4px; font-size: 0.75em; margin-left: 5px;">
+                    -{{ item.discount_percentage }}%
+                  </span>
+                </div>
+              </div>
+              <div class="descripcion">{{ item.descripcion }}</div>
+              <div class="menu-actions">
+                <button class="btn btn-success" @click="editItem(item)">Editar</button>
+                <button class="btn" style="background: #ffc107; color: #333;" @click="openDiscountModal(item)">Oferta</button>
                 <button class="btn btn-danger" @click="deleteItem(item)">Eliminar</button>
               </div>
             </div>
@@ -821,6 +914,39 @@ const exportCierreAdminPDF = () => {
         </div>
       </section>
     </main>
+
+    <!-- Discount Modal -->
+    <div v-if="showDiscountModal" class="modal-overlay" @click.self="closeDiscountModal">
+      <div class="modal" @click.stop>
+        <div class="modal-header">
+          <h3>Gestionar Oferta</h3>
+          <button class="modal-close" @click="closeDiscountModal">×</button>
+        </div>
+        <div class="modal-body">
+          <div v-if="discountItem">
+            <div class="modal-item-preview">
+              <img :src="menuImageUrl(discountItem)" alt="">
+              <div>
+                <strong>{{ discountItem.nombre }}</strong>
+                <div>S/. {{ discountItem.precio }}</div>
+              </div>
+            </div>
+            <div class="form-group">
+              <label style="font-weight: 600; color: #444; margin-bottom: 4px; display: block;">Porcentaje de Descuento (%)</label>
+              <input v-model="discountForm.discount_percentage" type="number" min="0" max="100" step="0.01" class="form-control" placeholder="Ej: 10">
+            </div>
+            <div class="form-group">
+              <label style="font-weight: 600; color: #444; margin-bottom: 4px; display: block;">Válido Hasta</label>
+              <input v-model="discountForm.discount_expires_at" type="date" class="form-control">
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" @click="closeDiscountModal">Cancelar</button>
+          <button class="btn btn-primary" @click="submitDiscount">Guardar Oferta</button>
+        </div>
+      </div>
+    </div>
   </div>
   </template>
 
@@ -1087,4 +1213,81 @@ const exportCierreAdminPDF = () => {
 .status-completado { background-color: #e8f5e9; color: #388e3c; }
 .status-cancelado { background-color: #ffebee; color: #d32f2f; }
 .status-default { background-color: #f5f5f5; color: #616161; }
+
+/* Discount Modal Styles */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal {
+  background: white;
+  border-radius: 12px;
+  width: 400px;
+  max-width: 90%;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+}
+
+.modal-header {
+  padding: 16px 20px;
+  border-bottom: 1px solid #eee;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.modal-header h3 {
+  margin: 0;
+  color: #333;
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  color: #666;
+}
+
+.modal-body {
+  padding: 20px;
+}
+
+.modal-item-preview {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+  padding: 10px;
+  background: #f9f9f9;
+  border-radius: 8px;
+}
+
+.modal-item-preview img {
+  width: 60px;
+  height: 60px;
+  object-fit: cover;
+  border-radius: 6px;
+}
+
+.modal-footer {
+  padding: 16px 20px;
+  border-top: 1px solid #eee;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.btn-secondary {
+  background: #6c757d;
+  color: white;
+}
 </style>

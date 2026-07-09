@@ -1,0 +1,113 @@
+
+CREATE DATABASE IF NOT EXISTS el_hornero;
+USE el_hornero;
+
+
+CREATE TABLE usuarios (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    usuario VARCHAR(50) NOT NULL UNIQUE,
+    nombres VARCHAR(100) NOT NULL,
+    apellidos VARCHAR(100) NOT NULL,
+    clave VARCHAR(100) NOT NULL,
+    tipo ENUM('admin','cocina','pedido','caja') NOT NULL
+);
+
+CREATE TABLE menu (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    nombre VARCHAR(100) NOT NULL,
+    precio DECIMAL(8,2) NOT NULL,
+    descripcion TEXT,
+    imagen VARCHAR(255),
+    categoria ENUM('bebidas','comida','promociones') NOT NULL DEFAULT 'comida',
+    discount_percentage DECIMAL(5,2) NULL DEFAULT NULL,
+    discount_expires_at DATETIME NULL DEFAULT NULL
+);
+
+CREATE TABLE caja (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    fecha_apertura DATETIME NOT NULL,
+    fecha_cierre DATETIME,
+    monto_inicial DECIMAL(8,2) NOT NULL,
+    monto_final DECIMAL(8,2),
+    estado ENUM('ABIERTA','CERRADA') DEFAULT 'ABIERTA'
+);
+
+CREATE TABLE venta (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    fecha DATE NOT NULL,
+    monto DECIMAL(8,2) NOT NULL,
+    metodo_pago ENUM('Efectivo', 'Tarjeta', 'Yape') DEFAULT 'Efectivo'
+);
+
+CREATE TABLE pedido (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    mesa INT NOT NULL,
+    usuario_id INT,
+    detalle TEXT,
+    tipo_servicio ENUM('local','llevar') DEFAULT 'local',
+    estado ENUM('pedido','cocinando','preparado','entregado','pagado') DEFAULT 'pedido',
+    venta_id INT,
+    fecha DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (usuario_id) REFERENCES usuarios(id),
+    FOREIGN KEY (venta_id) REFERENCES venta(id)
+);
+
+CREATE TABLE venta_detalle (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    venta_id INT NOT NULL,
+    menu_id INT NOT NULL,
+    cantidad INT NOT NULL,
+    precio_unitario DECIMAL(8,2) NOT NULL,
+    subtotal DECIMAL(8,2) NOT NULL,
+    FOREIGN KEY (venta_id) REFERENCES venta(id),
+    FOREIGN KEY (menu_id) REFERENCES menu(id)
+);
+
+CREATE TABLE recibo (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    venta_id INT NOT NULL,
+    numero VARCHAR(20) NOT NULL,
+    subtotal DECIMAL(8,2) NOT NULL,
+    igv DECIMAL(8,2) NOT NULL,
+    total DECIMAL(8,2) NOT NULL,
+    tipo ENUM('BOLETA','FACTURA') DEFAULT 'BOLETA',
+    fecha DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (venta_id) REFERENCES venta(id)
+);
+
+CREATE TABLE configuracion (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    clave VARCHAR(100) NOT NULL UNIQUE,
+    valor TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+-- Insertar datos iniciales de configuracion
+INSERT INTO configuracion (clave, valor) VALUES 
+('nombre_comercial', 'Pollo a la Brasa "El Hornero"'),
+('ruc', '10450610734'),
+('direccion', 'Av. Tamburco N° 224, Tamburco – Abancay – Apurímac'),
+('telefono', '972322520'),
+('yape_numero', '972322520');
+
+-- Insertar datos iniciales de usuarios
+INSERT INTO usuarios (usuario, nombres, apellidos, clave, tipo) VALUES
+('admin', 'Administrador', 'Sistema', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'admin'),
+('cocina1', 'Juan', 'Perez', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'cocina'),
+('pedido1', 'Maria', 'Gomez', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'pedido'),
+('caja1', 'Carlos', 'Lopez', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'caja');
+
+-- Insertar datos iniciales de menu
+INSERT INTO menu (nombre, precio, descripcion, imagen, categoria, discount_percentage, discount_expires_at) VALUES
+('Pollo a la Brasa Entero', 45.00, 'Pollo a la brasa entero con papas fritas y ensalada', null, 'comida', 15.00, '2026-07-15 23:59:59'),
+('Pollo a la Brasa Medio', 25.00, 'Medio pollo a la brasa con papas fritas y ensalada', null, 'comida', null, null),
+('Pollo a la Brasa 1/4', 15.00, 'Un cuarto de pollo a la brasa con papas fritas', null, 'comida', null, null),
+('Chifa Saltado de Pollo', 30.00, 'Saltado de pollo con papas fritas y arroz', null, 'comida', 10.00, '2026-07-20 23:59:59'),
+('Chifa Aeropuerto', 40.00, 'Aeropuerto de pollo y res', null, 'comida', null, null),
+('Chicha Morada', 5.00, 'Chicha morada casera 1 litro', null, 'bebidas', 20.00, '2026-07-12 23:59:59'),
+('Inca Kola', 4.00, 'Botella de Inca Kola 500ml', null, 'bebidas', null, null),
+('Coca Cola', 4.00, 'Botella de Coca Cola 500ml', null, 'bebidas', null, null),
+('Agua Mineral', 2.50, 'Botella de agua mineral 600ml', null, 'bebidas', null, null),
+('Cerveza Pilsen', 8.00, 'Botella de Pilsen 330ml', null, 'bebidas', null, null),
+('Combo Familiar', 55.00, '1 Pollo Entero + 1 Chicha Morada 2L + Papas Extra', null, 'promociones', 25.00, '2026-07-25 23:59:59');

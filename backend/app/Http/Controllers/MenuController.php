@@ -8,20 +8,12 @@ use Illuminate\Support\Str;
 
 class MenuController extends Controller
 {
-    public function __construct()
-    {
-        $dir = public_path('images/menu');
-        if (!is_dir($dir)) {
-            mkdir($dir, 0777, true);
-        }
-    }
-
     private function menuImageUrlFromName(Request $request, ?string $imageName): ?string
     {
         if (!$imageName) {
             return null;
         }
-        if (preg_match('/^https?:\\/\\//i', $imageName)) {
+        if (preg_match('/^https?:\/\//i', $imageName)) {
             return $imageName;
         }
         $name = basename($imageName);
@@ -64,6 +56,12 @@ class MenuController extends Controller
     public function index(Request $request)
     {
         try {
+            // Clear expired discounts first
+            Menu::where('discount_expires_at', '<', now())->update([
+                'discount_percentage' => null,
+                'discount_expires_at' => null
+            ]);
+            
             $menu = Menu::orderBy('id')->get();
             $data = $menu->map(function ($item) use ($request) {
                 return [
@@ -74,11 +72,12 @@ class MenuController extends Controller
                     'imagen' => $item->imagen ? basename((string) $item->imagen) : null,
                     'imagen_url' => $this->menuImageUrlFromName($request, $item->imagen ? (string) $item->imagen : null),
                     'categoria' => (string) $item->categoria,
+                    'discount_percentage' => $item->discount_percentage ? (float) $item->discount_percentage : null,
+                    'discount_expires_at' => $item->discount_expires_at ? $item->discount_expires_at->toDateTimeString() : null,
                 ];
             });
 
             return response()->json($data);
-
         } catch (\Exception $e) {
             return response()->json(['error' => 'Excepción: ' . $e->getMessage()], 500);
         }
@@ -91,7 +90,9 @@ class MenuController extends Controller
             'precio' => 'required|numeric|min:0',
             'descripcion' => 'required|string',
             'imagen' => 'required|file|mimes:jpeg,png,jpg,gif,webp|max:4096',
-            'categoria' => 'required|string|in:bebidas,comida',
+            'categoria' => 'required|string|in:bebidas,comida,promociones',
+            'discount_percentage' => 'nullable|numeric|min:0|max:100',
+            'discount_expires_at' => 'nullable|date',
         ]);
         if (!$request->hasFile('imagen')) {
             return response()->json(['success' => false, 'error' => 'Archivo de imagen no recibido'], 422);
@@ -105,35 +106,58 @@ class MenuController extends Controller
             return response()->json(['success' => false, 'error' => 'No se pudo guardar la imagen en el servidor'], 500);
         }
         $menu->categoria = $request->categoria;
+        $menu->discount_percentage = $request->discount_percentage;
+        $menu->discount_expires_at = $request->discount_expires_at;
         $menu->save();
-
         return response()->json(['success' => true, 'id' => $menu->id, 'imagen' => $menu->imagen]);
     }
 
     public function update(Request $request, $id)
     {
         $request->validate([
-            'nombre' => 'required|string',
-            'precio' => 'required|numeric|min:0',
-            'descripcion' => 'required|string',
-            'categoria' => 'required|string|in:bebidas,comida',
+            'nombre' => 'sometimes|required|string',
+            'precio' => 'sometimes|required|numeric|min:0',
+            'descripcion' => 'sometimes|required|string',
+            'categoria' => 'sometimes|required|string|in:bebidas,comida,promociones',
             'imagen' => 'nullable|file|mimes:jpeg,png,jpg,gif,webp|max:4096',
+            'discount_percentage' => 'nullable|numeric|min:0|max:100',
+            'discount_expires_at' => 'nullable|date',
         ]);
         $menu = Menu::find($id);
         if (!$menu) {
             return response()->json(['success' => false, 'error' => 'No encontrado'], 404);
         }
-        $menu->nombre = $request->nombre;
-        $menu->precio = $request->precio;
-        $menu->descripcion = $request->descripcion;
-        $newImage = $this->storeMenuImage($request, (string) $request->nombre);
+        
+        // Update only fields that are present
+        if ($request->has('nombre')) {
+            $menu->nombre = $request->nombre;
+        }
+        if ($request->has('precio')) {
+            $menu->precio = $request->precio;
+        }
+        if ($request->has('descripcion')) {
+            $menu->descripcion = $request->descripcion;
+        }
+        if ($request->has('categoria')) {
+            $menu->categoria = $request->categoria;
+        }
+        
+        $newImage = $this->storeMenuImage($request, (string) ($request->has('nombre') ? $request->nombre : $menu->nombre));
         if ($request->hasFile('imagen') && !$newImage) {
             return response()->json(['success' => false, 'error' => 'No se pudo guardar la imagen en el servidor'], 500);
         }
         if ($newImage) {
             $menu->imagen = $newImage;
         }
-        $menu->categoria = $request->categoria;
+        
+        // Handle discount clearing
+        if ($request->has('discount_percentage')) {
+            $menu->discount_percentage = $request->discount_percentage !== '' ? $request->discount_percentage : null;
+        }
+        if ($request->has('discount_expires_at')) {
+            $menu->discount_expires_at = $request->discount_expires_at !== '' ? $request->discount_expires_at : null;
+        }
+        
         $menu->save();
         return response()->json(['success' => true, 'imagen' => $menu->imagen]);
     }
