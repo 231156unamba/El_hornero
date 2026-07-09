@@ -5,25 +5,30 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class Recibo extends Model
+class VentaDetalle extends Model
 {
     use HasFactory;
 
-    protected $table = 'recibo';
+    protected $table = 'venta_detalle';
     public $timestamps = false;
 
     protected $fillable = [
         'venta_id',
-        'numero',
+        'menu_id',
+        'cantidad',
+        'precio_unitario',
         'subtotal',
-        'igv',
-        'total',
-        'tipo',
     ];
 
     // Relación con Venta
     public function venta()
     {
         return $this->belongsTo(Venta::class);
+    }
+
+    // Relación con Menu
+    public function menu()
+    {
+        return $this->belongsTo(Menu::class);
     }
 }

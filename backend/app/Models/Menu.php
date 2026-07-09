@@ -18,5 +18,11 @@ class Menu extends Model
         'descripcion',
         'imagen',
         'categoria',
+        'discount_percentage',
+        'discount_expires_at',
+    ];
+    
+    protected $casts = [
+        'discount_expires_at' => 'datetime',
     ];
 }

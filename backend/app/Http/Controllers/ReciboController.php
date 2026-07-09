@@ -5,7 +5,6 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\Recibo;
 use App\Models\Venta;
-use App\Models\SunatLog;
 
 class ReciboController extends Controller
 {
@@ -38,7 +37,6 @@ class ReciboController extends Controller
         $recibo->igv = $igv;
         $recibo->total = $total;
         $recibo->tipo = $tipo;
-        $recibo->estado_sunat = 'PENDIENTE';
         $recibo->save();
 
         return response()->json([
@@ -50,28 +48,6 @@ class ReciboController extends Controller
             'igv' => $igv,
             'total' => $total,
             'tipo' => $tipo
-        ]);
-    }
-
-    public function enviarSunat()
-    {
-        $recibo = Recibo::where('estado_sunat', 'PENDIENTE')->orderBy('id', 'desc')->first();
-        if (!$recibo) {
-            return response()->json(['error' => 'No hay recibos pendientes']);
-        }
-
-        $recibo->estado_sunat = 'ENVIADO';
-        $recibo->save();
-
-        $log = new SunatLog();
-        $log->recibo_id = $recibo->id;
-        $log->respuesta = 'ENVIADO';
-        $log->save();
-
-        return response()->json([
-            'ok' => true, 
-            'msg' => 'Recibo enviado a SUNAT', 
-            'recibo_id' => $recibo->id
         ]);
     }
 }

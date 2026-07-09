@@ -10,7 +10,7 @@ const api = axios.create({
 // Interceptor para agregar token si existe (si se implementa auth con token real más adelante)
 // Por ahora el login devuelve un objeto simple, pero es buena práctica tener esto.
 api.interceptors.request.use(config => {
-  const token = localStorage.getItem('token'); 
+  const token = localStorage.getItem('token');
   // Nota: En la implementación actual del backend no estamos usando tokens JWT reales,
   // pero el frontend espera 'token' en localStorage para validar sesión en las vistas.
   if (token) {

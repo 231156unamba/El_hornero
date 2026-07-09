@@ -15,5 +15,24 @@ class Venta extends Model
     protected $fillable = [
         'fecha',
         'monto',
+        'metodo_pago',
     ];
+
+    // Relación con VentaDetalle
+    public function detalles()
+    {
+        return $this->hasMany(VentaDetalle::class);
+    }
+
+    // Relación con Recibo
+    public function recibo()
+    {
+        return $this->hasOne(Recibo::class);
+    }
+
+    // Relación con Pedidos
+    public function pedidos()
+    {
+        return $this->hasMany(Pedido::class);
+    }
 }

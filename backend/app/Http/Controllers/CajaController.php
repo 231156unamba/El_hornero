@@ -5,6 +5,9 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\Caja;
 use App\Models\Venta;
+use App\Models\VentaDetalle;
+use App\Models\Pedido;
+use App\Models\Menu;
 
 class CajaController extends Controller
 {
@@ -42,6 +45,8 @@ class CajaController extends Controller
     public function registrarVenta(Request $request)
     {
         $monto = $request->input('monto', 0.00);
+        $pedidoIds = $request->input('pedido_ids', []);
+        
         if ($monto <= 0) {
             return response()->json(['error' => 'Monto inválido']);
         }
@@ -51,6 +56,36 @@ class CajaController extends Controller
         $venta->monto = $monto;
         $venta->metodo_pago = $request->input('metodo_pago', 'Efectivo');
         $venta->save();
+
+        // Si hay pedidos, guardamos el detalle de la venta
+        if (!empty($pedidoIds)) {
+            $pedidos = Pedido::whereIn('id', $pedidoIds)->get();
+            $menus = Menu::all()->keyBy('nombre');
+            
+            foreach ($pedidos as $pedido) {
+                $detalle = (string) $pedido->detalle;
+                $parts = array_map('trim', explode(',', $detalle));
+                
+                foreach ($parts as $part) {
+                    if (preg_match('/(\d+)\s*x\s*(.+)/i', $part, $m)) {
+                        $qty = (int) $m[1];
+                        $nombre = trim($m[2]);
+                        $nombre = preg_replace('/\(.*$/', '', $nombre);
+                        
+                        if (isset($menus[$nombre])) {
+                            $menu = $menus[$nombre];
+                            $detalleVenta = new VentaDetalle();
+                            $detalleVenta->venta_id = $venta->id;
+                            $detalleVenta->menu_id = $menu->id;
+                            $detalleVenta->cantidad = $qty;
+                            $detalleVenta->precio_unitario = $menu->precio;
+                            $detalleVenta->subtotal = $qty * $menu->precio;
+                            $detalleVenta->save();
+                        }
+                    }
+                }
+            }
+        }
 
         return response()->json([
             'ok' => true, 

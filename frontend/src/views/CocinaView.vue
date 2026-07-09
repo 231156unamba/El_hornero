@@ -26,7 +26,8 @@ onUnmounted(() => {
 const fetchPedidos = async () => {
   try {
     const response = await api.get('/pedidos');
-    pedidos.value = response.data;
+    // Ordenar localmente: Antiguos primero (fecha ASC) para Cocina
+    pedidos.value = response.data.sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
   } catch (error) {
     console.error('Error fetching pedidos:', error);
   }
