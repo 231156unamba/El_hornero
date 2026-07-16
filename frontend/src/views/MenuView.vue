@@ -6,11 +6,12 @@ const menu = ref([]);
 const loading = ref(true);
 const selectedCat = ref('comida');
 const apiOrigin = new URL(api.defaults.baseURL).origin;
+const normalizeCategory = (value) => (value || 'comida').toString().trim().toLowerCase();
 const filteredMenu = computed(() => {
   if (selectedCat.value === 'promociones') {
-    return menu.value.filter(m => m.discount_percentage);
+    return menu.value.filter(m => normalizeCategory(m.categoria) === 'promociones');
   }
-  return menu.value.filter(m => (m.categoria || 'comida') === selectedCat.value);
+  return menu.value.filter(m => normalizeCategory(m.categoria) === selectedCat.value);
 });
 
 const menuImageUrl = (plato) => {

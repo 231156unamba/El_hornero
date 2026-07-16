@@ -10,6 +10,13 @@ use App\Models\Venta;
 use App\Models\Usuario;
 use App\Models\Recibo;
 use App\Models\Configuracion;
+use App\Services\Graficas\PagosPorMetodoGrafica;
+use App\Services\Graficas\VentasDiariasGrafica;
+use App\Services\Graficas\VentasMensualesGrafica;
+use App\Services\Graficas\VentasAnualesGrafica;
+use App\Services\Graficas\PedidosDiariosGrafica;
+use App\Services\Graficas\PedidosMensualesGrafica;
+use App\Services\Graficas\PedidosAnualesGrafica;
 
 class AdminController extends Controller
 {
@@ -19,13 +26,21 @@ class AdminController extends Controller
         $pedidosHoy = Pedido::whereDate('fecha', $hoy)->count();
         $ventasHoy = (float) Venta::whereDate('fecha', $hoy)->sum('monto');
         $totalClientes = Usuario::count();
-        $pedidosPendientes = Pedido::where('estado', 'pedido')->count();
+        $ventasMes = (float) Venta::whereMonth('fecha', now()->month)->whereYear('fecha', now()->year)->sum('monto');
+        $recibosHoy = Recibo::whereDate('fecha', $hoy)->count();
         return response()->json([
             'pedidosHoy' => $pedidosHoy,
             'ventasHoy' => $ventasHoy,
             'totalClientes' => $totalClientes,
-            'pedidosPendientes' => $pedidosPendientes,
+            'ventasMes' => $ventasMes,
+            'recibosHoy' => $recibosHoy,
         ]);
+    }
+
+    public function pagosPorMetodo()
+    {
+        $grafica = new PagosPorMetodoGrafica();
+        return response()->json($grafica->ejecutar());
     }
 
     public function recientes()
@@ -118,56 +133,38 @@ class AdminController extends Controller
 
     public function ventasDiarias()
     {
-        $rows = Venta::select(DB::raw('DATE(fecha) as label'), DB::raw('SUM(monto) as value'))
-            ->groupBy('label')
-            ->orderBy('label')
-            ->get();
-        return response()->json($rows);
+        $grafica = new VentasDiariasGrafica();
+        return response()->json($grafica->ejecutar());
     }
 
     public function ventasMensuales()
     {
-        $rows = Venta::select(DB::raw("DATE_FORMAT(fecha, '%Y-%m') as label"), DB::raw('SUM(monto) as value'))
-            ->groupBy('label')
-            ->orderBy('label')
-            ->get();
-        return response()->json($rows);
+        $grafica = new VentasMensualesGrafica();
+        return response()->json($grafica->ejecutar());
     }
 
     public function ventasAnuales()
     {
-        $rows = Venta::select(DB::raw('YEAR(fecha) as label'), DB::raw('SUM(monto) as value'))
-            ->groupBy('label')
-            ->orderBy('label')
-            ->get();
-        return response()->json($rows);
+        $grafica = new VentasAnualesGrafica();
+        return response()->json($grafica->ejecutar());
     }
 
     public function pedidosDiarios()
     {
-        $rows = Pedido::select(DB::raw('DATE(fecha) as label'), DB::raw('COUNT(*) as value'))
-            ->groupBy('label')
-            ->orderBy('label')
-            ->get();
-        return response()->json($rows);
+        $grafica = new PedidosDiariosGrafica();
+        return response()->json($grafica->ejecutar());
     }
 
     public function pedidosMensuales()
     {
-        $rows = Pedido::select(DB::raw("DATE_FORMAT(fecha, '%Y-%m') as label"), DB::raw('COUNT(*) as value'))
-            ->groupBy('label')
-            ->orderBy('label')
-            ->get();
-        return response()->json($rows);
+        $grafica = new PedidosMensualesGrafica();
+        return response()->json($grafica->ejecutar());
     }
 
     public function pedidosAnuales()
     {
-        $rows = Pedido::select(DB::raw('YEAR(fecha) as label'), DB::raw('COUNT(*) as value'))
-            ->groupBy('label')
-            ->orderBy('label')
-            ->get();
-        return response()->json($rows);
+        $grafica = new PedidosAnualesGrafica();
+        return response()->json($grafica->ejecutar());
     }
 
     public function reportePedidos(Request $request)
@@ -293,14 +290,13 @@ class AdminController extends Controller
     public function cajaConfig()
     {
         $data = Configuracion::obtenerTodas();
-        // Si no hay datos, insertar los valores por defecto
         if (empty($data)) {
             $defaults = [
-                'nombre_comercial' => 'Pollo a la Brasa "El Hornero"',
-                'ruc' => '10450610734',
-                'direccion' => 'Av. Tamburco N° 224, Tamburco – Abancay – Apurímac',
-                'telefono' => '972322520',
-                'yape_numero' => '972322520',
+                'nombre_comercial' => env('CAJA_NOMBRE_COMERCIAL', 'El Hornero'),
+                'ruc' => env('CAJA_RUC', ''),
+                'direccion' => env('CAJA_DIRECCION', ''),
+                'telefono' => env('CAJA_TELEFONO', ''),
+                'yape_numero' => env('CAJA_YAPE_NUMERO', ''),
             ];
             foreach ($defaults as $clave => $valor) {
                 Configuracion::establecer($clave, $valor);
