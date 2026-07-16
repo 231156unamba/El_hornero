@@ -34,6 +34,7 @@ Route::delete('/pedidos/{id}', [PedidoController::class, 'destroy']);
 
 Route::prefix('admin')->group(function () {
     Route::get('/stats', [AdminController::class, 'stats']);
+    Route::get('/pagos-por-metodo', [AdminController::class, 'pagosPorMetodo']);
     Route::get('/recientes', [AdminController::class, 'recientes']);
     Route::get('/clientes', [AdminController::class, 'clientes']);
     Route::get('/usuarios', [AdminController::class, 'clientes']);

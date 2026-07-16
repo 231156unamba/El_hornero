@@ -1,15 +1,24 @@
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import api from '../api';
-import { Line, Bar } from 'vue-chartjs';
-import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, BarElement, Title, Tooltip, Legend } from 'chart.js';
-
-ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, BarElement, Title, Tooltip, Legend);
+import '../styles/admin.css';
+import DashboardStats from '../components/admin/DashboardStats.vue';
+import GraficasPanel from '../components/admin/GraficasPanel.vue';
+import PedidosRecientes from '../components/admin/PedidosRecientes.vue';
+import VentasMesSummary from '../components/admin/VentasMesSummary.vue';
+import MenuManagement from '../components/admin/MenuManagement.vue';
+import MenuForm from '../components/admin/MenuForm.vue';
+import UsuariosManagement from '../components/admin/UsuariosManagement.vue';
+import UsuarioForm from '../components/admin/UsuarioForm.vue';
+import PedidosTable from '../components/admin/PedidosTable.vue';
+import ReportesSection from '../components/admin/ReportesSection.vue';
+import CajaControl from '../components/admin/CajaControl.vue';
+import DiscountModal from '../components/admin/DiscountModal.vue'
 
 const router = useRouter();
 const apiOrigin = new URL(api.defaults.baseURL).origin;
-const stats = ref({ pedidosHoy: 0, ventasHoy: 0, totalClientes: 0, pedidosPendientes: 0 });
+const stats = ref({ pedidosHoy: 0, ventasHoy: 0, totalClientes: 0, ventasMes: 0, recibosHoy: 0 });
 const recientes = ref([]);
 const form = ref({ id: null, nombre: '', precio: '', categoria: 'comida', descripcion: '' });
 
@@ -25,14 +34,17 @@ const pedidos = ref([]);
 const pedidosDiarios = ref({ labels: [], datasets: [] });
 const pedidosMensuales = ref({ labels: [], datasets: [] });
 const pedidosAnuales = ref({ labels: [], datasets: [] });
+const pagosMetodo = ref({ labels: [], datasets: [] });
 const reportType = ref('pedidos');
 const reportFilters = ref({ from: '', to: '', mesa: '', mesero_id: '', tipo: '', costo_min: '', costo_max: '' });
 const reportData = ref([]);
 const meseros = ref([]);
-const chartOptions = {
-  responsive: true,
-  plugins: { legend: { position: 'top' }, title: { display: false } }
-};
+const todayLabel = computed(() => new Date().toLocaleDateString('es-PE', {
+  weekday: 'long',
+  day: 'numeric',
+  month: 'long',
+  year: 'numeric'
+}));
 const loaded = ref({ stats: false, recientes: false, usuarios: false, pedidos: false });
 const userForm = ref({ id: null, usuario: '', nombres: '', apellidos: '', clave: '', tipo: 'pedido' });
 const userEditing = ref(false);
@@ -74,6 +86,7 @@ onMounted(() => {
     loadPedidosDiarios();
     loadPedidosMensuales();
     loadPedidosAnuales();
+    loadPagosMetodo();
   }
 });
 
@@ -83,8 +96,7 @@ const loadStats = async () => {
   loaded.value.stats = true;
 };
 const loadRecientes = async () => {
-  // Use /pedidos instead of /admin/recientes to get 'detalle' without touching backend code
-  const r = await api.get('/pedidos');
+  const r = await api.get('/admin/recientes');
   recientes.value = r.data.slice(0, 10);
   loaded.value.recientes = true;
 };
@@ -163,6 +175,23 @@ const loadPedidosAnuales = async () => {
     pedidosAnuales.value = { labels, datasets: [{ label: 'Pedidos anuales', data: values, backgroundColor: '#42a5f5' }] };
   }
 };
+const loadPagosMetodo = async () => {
+  const r = await api.get('/admin/pagos-por-metodo');
+  const labels = r.data.map(i => i.label || 'Sin dato');
+  const values = r.data.map(i => Number(i.value) || 0);
+  if (!labels.length || values.every(v => v === 0)) {
+    pagosMetodo.value = { labels: [], datasets: [] };
+  } else {
+    pagosMetodo.value = {
+      labels,
+      datasets: [{
+        label: 'Ventas por método de pago',
+        data: values,
+        backgroundColor: ['#ef6c00', '#2e7d32', '#1565c0', '#8e24aa', '#c62828']
+      }]
+    };
+  }
+};
 const setTab = async (t) => {
   activeTab.value = t;
   if (t === 'menu') loadMenu();
@@ -172,6 +201,7 @@ const setTab = async (t) => {
     loadPedidosDiarios();
     loadPedidosMensuales();
     loadPedidosAnuales();
+    loadPagosMetodo();
   }
   if (t === 'usuarios') loadUsuarios();
   if (t === 'pedidos') loadPedidos();
@@ -342,6 +372,8 @@ const formatDate = (dateString) => {
   return date.toLocaleDateString('es-PE', { day: 'numeric', month: 'numeric', year: 'numeric' });
 };
 
+const formatCurrency = (value) => `S/. ${Number(value || 0).toFixed(2)}`;
+
 const formatTime = (dateString) => {
   if (!dateString) return '';
   const date = new Date(dateString.includes('Z') ? dateString : dateString.replace(' ', 'T') + 'Z');
@@ -455,429 +487,106 @@ const exportCierreAdminPDF = () => {
       <div class="tabs">
         <button :class="['tab-btn', activeTab==='dashboard'?'active':'']" @click="setTab('dashboard')">Dashboard</button>
         <button :class="['tab-btn', activeTab==='menu'?'active':'']" @click="setTab('menu')">Menú</button>
-        <button :class="['tab-btn', activeTab==='pedidos'?'active':'']" @click="setTab('pedidos')">Pedidos</button>
+        <button :class="['tab-btn', activeTab==='pedidos'?'active':'']" @click="setTab('pedidos')">Pedidos de hoy</button>
         <button :class="['tab-btn', activeTab==='usuarios'?'active':'']" @click="setTab('usuarios')">Usuarios</button>
         <button :class="['tab-btn', activeTab==='reportes'?'active':'']" @click="setTab('reportes')">Reportes</button>
         <button :class="['tab-btn', activeTab==='caja_control'?'active':'']" @click="setTab('caja_control')">Control de Caja</button>
       </div>
 
-      <section v-if="activeTab==='dashboard' && loaded.stats" class="dashboard-stats">
-        <div class="stat-card">
-          <div class="stat-value">{{ stats.pedidosHoy }}</div>
-          <div class="stat-label">Pedidos Hoy</div>
+      <section v-if="activeTab==='dashboard' && loaded.stats" class="dashboard-shell">
+        <div class="dashboard-hero">
+          <div>
+            <p class="eyebrow">Panel administrativo</p>
+            <h2>Resumen del día</h2>
+            <p>Monitorea pedidos, ventas y actividad del restaurante desde una sola vista.</p>
+          </div>
+          <div class="hero-badge">
+            <span>Hoy</span>
+            <strong>{{ todayLabel }}</strong>
+          </div>
         </div>
-        <div class="stat-card">
-          <div class="stat-value">S/. {{ stats.ventasHoy }}</div>
-          <div class="stat-label">Ventas Hoy</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-value">{{ stats.totalClientes }}</div>
-          <div class="stat-label">Usuarios</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-value">{{ stats.pedidosPendientes }}</div>
-          <div class="stat-label">Pedidos Pendientes</div>
+
+        <DashboardStats :stats="stats" />
+
+        <GraficasPanel 
+          :pedidos-diarios="pedidosDiarios"
+          :pedidos-mensuales="pedidosMensuales"
+          :pedidos-anuales="pedidosAnuales"
+          :pagos-metodo="pagosMetodo"
+        />
+
+        <div class="dashboard-grid secondary-grid">
+          <PedidosRecientes :recientes="recientes" />
+          <VentasMesSummary :ventas-mes="stats.ventasMes" />
         </div>
       </section>
       <div v-if="activeTab==='dashboard' && !loaded.stats" class="loading">Cargando...</div>
 
       <section v-if="activeTab==='menu'" class="content-section" style="padding: 20px 50px;">
         <h2 class="section-title">Gestión del Menú</h2>
-        <form class="add-form" @submit.prevent="submitMenu" style="padding: 30px;">
-          <div class="form-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px 40px;">
-            <div class="form-group">
-              <label style="font-weight: 600; color: #444; margin-bottom: 4px; display: block;">Nombre del Plato</label>
-              <input v-model="form.nombre" class="form-control" placeholder="Ej. Monstrito" required>
-            </div>
-            <div class="form-group">
-              <label style="font-weight: 600; color: #444; margin-bottom: 4px; display: block;">Categoría</label>
-              <select v-model="form.categoria" class="form-control" required>
-                <option value="comida">Comida</option>
-                <option value="bebidas">Bebidas</option>
-                <option value="promociones">Promociones</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label style="font-weight: 600; color: #444; margin-bottom: 4px; display: block;">Precio (S/.)</label>
-              <input v-model="form.precio" type="number" step="0.01" class="form-control" placeholder="0.00" required>
-            </div>
-          <div class="form-group">
-            <label style="font-weight: 600; color: #444; margin-bottom: 4px; display: block;">Imagen del Plato</label>
-            <input type="file" class="form-control" accept="image/*" :required="!editing" @change="onImageChange">
-            <div v-if="editing && currentImageUrl" style="margin-top:8px; display:flex; align-items:center; gap:10px;">
-              <img :src="currentImageUrl" alt="" style="width:64px; height:64px; object-fit:cover; border:1px solid #ddd;">
-              <small style="color:#777;">Imagen actual. Si no subes una nueva, se mantiene.</small>
-            </div>
-            <div v-if="imagenName" style="margin-top:6px; color:#555; font-size:12px;">Seleccionado: {{ imagenName }}</div>
-            </div>
-            <div class="form-group" style="grid-column: span 2;">
-              <label style="font-weight: 600; color: #444; margin-bottom: 4px; display: block;">Descripción</label>
-              <textarea v-model="form.descripcion" class="form-control" rows="3" placeholder="Detalla los ingredientes y la presentación del plato..." required></textarea>
-            </div>
-          </div>
-          <div class="form-buttons" style="margin-top: 30px; display: flex; gap: 15px; justify-content: flex-end;">
-            <button type="button" class="btn" style="background: #ef5350; color: white; border: none; font-weight: 600;" @click="clearForm">Limpiar</button>
-            <button type="button" class="btn btn-secondary" v-if="editing" @click="clearForm" style="background: #757575; color: white;">Cancelar</button>
-            <button type="submit" class="btn btn-solid-orange">{{ editing ? 'Guardar Cambios' : 'Agregar Plato' }}</button>
-          </div>
-        </form>
-        <h3 style="margin: 25px 0 15px; color: #f1af32; font-size: 1.3rem; border-bottom: 1px solid #eee; padding-bottom: 10px;">Comidas</h3>
-        <div class="menu-list">
-          <div class="menu-item" v-for="item in menu.filter(i => (i.categoria || '').toLowerCase() === 'comida')" :key="item.id">
-            <img :src="menuImageUrl(item)" alt="" @error="imgFallback">
-            <div class="menu-content">
-              <div class="menu-header">
-                <div class="nombre">{{ item.nombre }}</div>
-                <div class="precio">
-                  <span v-if="item.discount_percentage" style="text-decoration: line-through; color: #777; font-size: 0.8em; margin-right: 5px;">
-                    S/. {{ item.precio }}
-                  </span>
-                  S/. {{ item.discount_percentage ? (item.precio * (1 - item.discount_percentage / 100)).toFixed(2) : item.precio }}
-                  <span v-if="item.discount_percentage" style="background: #ef5350; color: white; padding: 2px 6px; border-radius: 4px; font-size: 0.75em; margin-left: 5px;">
-                    -{{ item.discount_percentage }}%
-                  </span>
-                </div>
-              </div>
-              <div class="descripcion">{{ item.descripcion }}</div>
-              <div class="menu-actions">
-                <button class="btn btn-success" @click="editItem(item)">Editar</button>
-                <button class="btn" style="background: #ffc107; color: #333;" @click="openDiscountModal(item)">Oferta</button>
-                <button class="btn btn-danger" @click="deleteItem(item)">Eliminar</button>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <h3 style="margin: 40px 0 15px; color: #f1af32; font-size: 1.3rem; border-bottom: 1px solid #eee; padding-bottom: 10px;">Bebidas</h3>
-        <div class="menu-list">
-          <div class="menu-item" v-for="item in menu.filter(i => (i.categoria || '').toLowerCase() === 'bebidas')" :key="item.id">
-            <img :src="menuImageUrl(item)" alt="" @error="imgFallback">
-            <div class="menu-content">
-              <div class="menu-header">
-                <div class="nombre">{{ item.nombre }}</div>
-                <div class="precio">
-                  <span v-if="item.discount_percentage" style="text-decoration: line-through; color: #777; font-size: 0.8em; margin-right: 5px;">
-                    S/. {{ item.precio }}
-                  </span>
-                  S/. {{ item.discount_percentage ? (item.precio * (1 - item.discount_percentage / 100)).toFixed(2) : item.precio }}
-                  <span v-if="item.discount_percentage" style="background: #ef5350; color: white; padding: 2px 6px; border-radius: 4px; font-size: 0.75em; margin-left: 5px;">
-                    -{{ item.discount_percentage }}%
-                  </span>
-                </div>
-              </div>
-              <div class="descripcion">{{ item.descripcion }}</div>
-              <div class="menu-actions">
-                <button class="btn btn-success" @click="editItem(item)">Editar</button>
-                <button class="btn" style="background: #ffc107; color: #333;" @click="openDiscountModal(item)">Oferta</button>
-                <button class="btn btn-danger" @click="deleteItem(item)">Eliminar</button>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <h3 style="margin: 40px 0 15px; color: #f1af32; font-size: 1.3rem; border-bottom: 1px solid #eee; padding-bottom: 10px;">Promociones</h3>
-        <div class="menu-list">
-          <div class="menu-item" v-for="item in menu.filter(i => (i.categoria || '').toLowerCase() === 'promociones')" :key="item.id">
-            <img :src="menuImageUrl(item)" alt="" @error="imgFallback">
-            <div class="menu-content">
-              <div class="menu-header">
-                <div class="nombre">{{ item.nombre }}</div>
-                <div class="precio">
-                  <span v-if="item.discount_percentage" style="text-decoration: line-through; color: #777; font-size: 0.8em; margin-right: 5px;">
-                    S/. {{ item.precio }}
-                  </span>
-                  S/. {{ item.discount_percentage ? (item.precio * (1 - item.discount_percentage / 100)).toFixed(2) : item.precio }}
-                  <span v-if="item.discount_percentage" style="background: #ef5350; color: white; padding: 2px 6px; border-radius: 4px; font-size: 0.75em; margin-left: 5px;">
-                    -{{ item.discount_percentage }}%
-                  </span>
-                </div>
-              </div>
-              <div class="descripcion">{{ item.descripcion }}</div>
-              <div class="menu-actions">
-                <button class="btn btn-success" @click="editItem(item)">Editar</button>
-                <button class="btn" style="background: #ffc107; color: #333;" @click="openDiscountModal(item)">Oferta</button>
-                <button class="btn btn-danger" @click="deleteItem(item)">Eliminar</button>
-              </div>
-            </div>
-          </div>
-        </div>
+        <MenuForm 
+          :form="form" 
+          :editing="editing" 
+          :current-image-url="currentImageUrl" 
+          :imagen-name="imagenName"
+          @submit="submitMenu"
+          @clear="clearForm"
+          @update:form="form = $event"
+          @image-change="onImageChange"
+        />
+        <MenuManagement 
+          :menu="menu" 
+          @edit="editItem" 
+          @delete="deleteItem" 
+          @discount="openDiscountModal" 
+        />
       </section>
-
-      <section v-if="activeTab==='dashboard'" class="content-section" style="padding: 20px 40px;">
-        <h2 class="section-title">Gráficas de Pedidos</h2>
-        <div class="charts-grid">
-          <div class="chart-card">
-            <Line v-if="pedidosDiarios.labels.length" :data="pedidosDiarios" :options="chartOptions" />
-            <div v-else class="no-data">Sin datos</div>
-          </div>
-          <div class="chart-card">
-            <Bar v-if="pedidosMensuales.labels.length" :data="pedidosMensuales" :options="chartOptions" />
-            <div v-else class="no-data">Sin datos</div>
-          </div>
-          <div class="chart-card">
-            <Bar v-if="pedidosAnuales.labels.length" :data="pedidosAnuales" :options="chartOptions" />
-            <div v-else class="no-data">Sin datos</div>
-          </div>
-        </div>
-      </section>
-
-      <section v-if="activeTab==='dashboard' && loaded.recientes" class="content-section" style="padding: 20px 40px;">
-        <h2 class="section-title">Pedidos Recientes</h2>
-        <table class="custom-table">
-          <thead>
-            <tr>
-              <th>ID</th>
-              <th>MESA</th>
-              <th>DETALLE PEDIDO</th>
-              <th>COSTO</th>
-              <th>FECHA / HORA</th>
-              <th style="text-align: right;">ESTADO</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="r in recientes" :key="r.id">
-              <td style="color: #000">{{ r.id }}</td>
-              <td class="fw-bold" style="color: #000">Mesa {{ r.mesa }}</td>
-              <td style="font-size: 0.85rem; color: #000">{{ r.detalle }}</td>
-              <td style="color: #000">S/. {{ Number(r.costo || 0).toFixed(2) }}</td>
-              <td style="color: #000">{{ formatDate(r.fecha) }} {{ formatTime(r.fecha) }}</td>
-              <td style="text-align: right;">
-                <span :class="['status-badge', getStatusClass(r.estado)]">
-                  {{ r.estado }}
-                </span>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </section>
-      <div v-if="activeTab==='dashboard' && !loaded.recientes" class="loading">Cargando...</div>
 
       <section v-if="activeTab==='pedidos' && loaded.pedidos" class="content-section" style="padding: 20px 40px;">
         <h2 class="section-title">Pedidos</h2>
-        <table class="custom-table">
-          <thead>
-            <tr>
-              <th>ID</th>
-              <th>MESA</th>
-              <th>DETALLE PEDIDO</th>
-              <th>COSTO</th>
-              <th>FECHA / HORA</th>
-              <th style="text-align: right;">ESTADO</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="p in pedidos" :key="p.id">
-              <td style="color: #000">{{ p.id }}</td>
-              <td class="fw-bold" style="color: #000">Mesa {{ p.mesa }}</td>
-              <td style="font-size: 0.85rem; color: #000">{{ p.detalle }}</td>
-              <td style="color: #000">S/. {{ Number(p.costo || 0).toFixed(2) }}</td>
-              <td style="color: #000">{{ formatDate(p.fecha) }} {{ formatTime(p.fecha) }}</td>
-              <td style="text-align: right;">
-                <span :class="['status-badge', getStatusClass(p.estado)]">
-                  {{ p.estado }}
-                </span>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+        <PedidosTable :pedidos="pedidos" />
       </section>
       <div v-if="activeTab==='pedidos' && !loaded.pedidos" class="loading">Cargando...</div>
 
       <section v-if="activeTab==='usuarios' && loaded.usuarios" class="content-section" style="padding: 20px 50px;">
         <h2 class="section-title">Usuarios</h2>
-        <form class="add-form" @submit.prevent="submitUsuario" style="padding: 30px;">
-          <div class="form-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px 40px;">
-            <div class="form-group">
-              <label style="font-weight: 600; color: #444; margin-bottom: 4px; display: block;">Usuario</label>
-              <input v-model="userForm.usuario" class="form-control" placeholder="Ej. Yes" required>
-            </div>
-            <div class="form-group">
-              <label style="font-weight: 600; color: #444; margin-bottom: 4px; display: block;">Tipo</label>
-              <select v-model="userForm.tipo" class="form-control" required>
-                <option value="admin">Admin</option>
-                <option value="cocina">Cocina</option>
-                <option value="pedido">Pedido</option>
-                <option value="caja">Caja</option>
-              </select>
-            </div>
-          <div class="form-group">
-            <label style="font-weight: 600; color: #444; margin-bottom: 4px; display: block;">Nombres</label>
-            <input v-model="userForm.nombres" class="form-control" placeholder="Ej. Jesus" required>
-          </div>
-          <div class="form-group">
-            <label style="font-weight: 600; color: #444; margin-bottom: 4px; display: block;">Apellidos</label>
-            <input v-model="userForm.apellidos" class="form-control" placeholder="Ej. Luna" required>
-          </div>
-            <div class="form-group">
-              <label style="font-weight: 600; color: #444; margin-bottom: 4px; display: block;">Clave</label>
-              <input v-model="userForm.clave" type="password" class="form-control" :required="!userEditing" placeholder="******">
-              <small style="color:#777; margin-top: 4px; display: block;" v-if="userEditing">Dejar en blanco para mantener actual</small>
-            </div>
-          </div>
-          <div class="form-buttons" style="margin-top: 30px; display: flex; gap: 15px; justify-content: flex-end;">
-            <button type="button" class="btn" style="background: #ef5350; color: white; border: none; font-weight: 600;" @click="clearUsuarioForm">Limpiar</button>
-            <button type="button" class="btn btn-secondary" v-if="userEditing" @click="clearUsuarioForm" style="background: #757575; color: white;">Cancelar</button>
-            <button type="submit" class="btn btn-solid-orange">{{ userEditing ? 'Guardar Cambios' : 'Crear Usuario' }}</button>
-          </div>
-        </form>
-        <table class="custom-table" style="margin-top: 20px;">
-          <thead>
-            <tr>
-              <th>ID</th>
-              <th>USUARIO</th>
-              <th>NOMBRES</th>
-              <th>APELLIDOS</th>
-              <th>TIPO</th>
-              <th style="text-align: center;">ACCIONES</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="c in usuarios" :key="c.id">
-              <td style="color: #000">{{ c.id }}</td>
-              <td class="fw-bold" style="color: #000">{{ c.usuario }}</td>
-              <td style="color: #000">{{ c.nombres }}</td>
-              <td style="color: #000">{{ c.apellidos }}</td>
-              <td><span :class="['role-badge', c.tipo]">{{ c.tipo }}</span></td>
-              <td>
-                <div class="menu-actions" style="justify-content: center;">
-                  <button class="btn btn-success" @click="editUsuario(c)">Editar</button>
-                  <button class="btn btn-danger" v-if="c.id !== 1" @click="deleteUsuario(c)">Eliminar</button>
-                  <button class="btn btn-danger" v-else disabled style="opacity: 0.5; cursor: not-allowed;">Eliminar</button>
-                </div>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+        <UsuarioForm 
+          :user-form="userForm" 
+          :user-editing="userEditing" 
+          @submit="submitUsuario"
+          @clear="clearUsuarioForm"
+          @update:user-form="userForm = $event"
+        />
+        <UsuariosManagement 
+          :usuarios="usuarios" 
+          @edit="editUsuario" 
+          @delete="deleteUsuario" 
+        />
       </section>
       <div v-if="activeTab==='usuarios' && !loaded.usuarios" class="loading">Cargando...</div>
 
       <section v-if="activeTab==='reportes'" class="content-section" style="padding: 20px 40px;">
         <h2 class="section-title">Reportes</h2>
-        <div class="report-controls">
-          <div class="control">
-            <label>Tipo</label>
-            <select v-model="reportType" class="form-control" @change="loadReport">
-              <option value="pedidos">Pedidos</option>
-              <option value="pedidos_mesero">Pedidos por mesero</option>
-              <option value="recibos_entregados">Por costo</option>
-            </select>
-          </div>
-          <div class="control">
-            <label>Desde</label>
-            <input v-model="reportFilters.from" type="date" class="form-control" @change="loadReport">
-          </div>
-          <div class="control">
-            <label>Hasta</label>
-            <input v-model="reportFilters.to" type="date" class="form-control" @change="loadReport">
-          </div>
-          <div class="control" v-if="reportType==='pedidos'">
-            <label>Mesa</label>
-            <input v-model="reportFilters.mesa" type="number" min="1" class="form-control" @change="loadReport">
-          </div>
-          <div class="control" v-if="reportType==='pedidos_mesero'">
-            <label>Mesero</label>
-            <select v-model="reportFilters.mesero_id" class="form-control" @change="loadReport">
-              <option value="">Todos</option>
-              <option v-for="m in meseros" :key="m.id" :value="m.id">{{ (m.nombres || '') + ' ' + (m.apellidos || '') }}</option>
-            </select>
-          </div>
-          <div class="control" v-if="reportType==='recibos_entregados'">
-            <label>Costo mínimo</label>
-            <input v-model="reportFilters.costo_min" type="number" step="0.01" min="0" class="form-control" @change="loadReport">
-          </div>
-          <div class="control" v-if="reportType==='recibos_entregados'">
-            <label>Costo máximo</label>
-            <input v-model="reportFilters.costo_max" type="number" step="0.01" min="0" class="form-control" @change="loadReport">
-          </div>
-          <div class="control" v-if="reportType==='recibos_entregados'">
-            <label>Mesa</label>
-            <input v-model="reportFilters.mesa" type="number" min="1" class="form-control" @change="loadReport">
-          </div>
-          <div class="control">
-            <label>&nbsp;</label>
-            <button class="btn btn-solid-orange" @click="exportReportPDF">Exportar PDF</button>
-          </div>
-        </div>
-        <div class="report-preview">
-          <table class="custom-table" v-if="reportType==='pedidos'||reportType==='pedidos_mesero'||reportType==='recibos_entregados'">
-            <thead>
-              <tr>
-                <th>ID</th>
-                <th>MESA</th>
-                <th>MESERO</th>
-                <th>TIPO</th>
-                <th>DETALLE</th>
-                <th>COSTO</th>
-                <th>FECHA / HORA</th>
-                <th style="text-align: right;">ESTADO</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="p in reportData" :key="p.id">
-                <td style="color: #000">{{ p.id }}</td>
-                <td class="fw-bold" style="color: #000">Mesa {{ p.mesa }}</td>
-                <td style="color: #000">{{ p.mesero || '-' }}</td>
-                <td style="color: #000; text-transform: capitalize;">{{ p.tipo_servicio || 'local' }}</td>
-                <td style="font-size: 0.85rem; color: #000">{{ p.detalle }}</td>
-                <td style="color: #000">S/. {{ Number(p.costo || 0).toFixed(2) }}</td>
-                <td style="color: #000">{{ formatDate(p.fecha) }} {{ formatTime(p.fecha) }}</td>
-                <td style="text-align: right;">
-                    <span :class="['status-badge', getStatusClass(p.estado)]">
-                    {{ p.estado }}
-                  </span>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
+        <ReportesSection 
+          :report-type="reportType"
+          :report-filters="reportFilters"
+          :report-data="reportData"
+          :meseros="meseros"
+          @update:report-type="reportType = $event"
+          @update:report-filters="reportFilters = $event"
+          @export="exportReportPDF"
+        />
       </section>
       <section v-if="activeTab==='caja_control'" class="content-section" style="padding: 20px 40px;">
         <h2 class="section-title">Control de Caja</h2>
-        <form class="add-form" @submit.prevent="submitCajaConfig" style="padding: 20px;">
-          <div class="form-grid" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px;">
-            <div class="form-group">
-              <label>Nombre Comercial</label>
-              <input v-model="cajaForm.nombre_comercial" class="form-control" required>
-            </div>
-            <div class="form-group">
-              <label>RUC</label>
-              <input v-model="cajaForm.ruc" class="form-control" required>
-            </div>
-            <div class="form-group full-width">
-              <label>Dirección</label>
-              <input v-model="cajaForm.direccion" class="form-control" required>
-            </div>
-            <div class="form-group">
-              <label>Teléfono</label>
-              <input v-model="cajaForm.telefono" class="form-control" required>
-            </div>
-            <div class="form-group">
-              <label>Número Yape</label>
-              <input v-model="cajaForm.yape_numero" class="form-control" required>
-            </div>
-            <div class="form-group full-width">
-              <label>QR Yape</label>
-              <input type="file" class="form-control" accept="image/*" @change="onYapeQrChange">
-            </div>
-          </div>
-          <div class="form-buttons" style="display:flex; gap:10px; justify-content:flex-end;">
-            <button type="submit" class="btn btn-solid-orange">Guardar</button>
-          </div>
-        </form>
-        <div class="report-controls" style="margin-top: 16px;">
-          <div class="control">
-            <label>Desde</label>
-            <input v-model="cierreAdmin.from" type="date" class="form-control" @change="loadCierreAdmin">
-          </div>
-          <div class="control">
-            <label>Hasta</label>
-            <input v-model="cierreAdmin.to" type="date" class="form-control" @change="loadCierreAdmin">
-          </div>
-          <div class="control">
-            <label>&nbsp;</label>
-            <button class="btn btn-solid-orange" @click="exportCierreAdminPDF">Exportar Cierre</button>
-          </div>
-        </div>
+        <CajaControl 
+          :caja-form="cajaForm"
+          :cierre-admin="cierreAdmin"
+          @submit="submitCajaConfig"
+          @update:caja-form="cajaForm = $event"
+          @update:cierre-admin="cierreAdmin = $event"
+          @export="exportCierreAdminPDF"
+        />
         <div class="report-preview">
           <table class="custom-table">
             <thead>
@@ -914,380 +623,15 @@ const exportCierreAdminPDF = () => {
         </div>
       </section>
     </main>
+  </div>
 
     <!-- Discount Modal -->
-    <div v-if="showDiscountModal" class="modal-overlay" @click.self="closeDiscountModal">
-      <div class="modal" @click.stop>
-        <div class="modal-header">
-          <h3>Gestionar Oferta</h3>
-          <button class="modal-close" @click="closeDiscountModal">×</button>
-        </div>
-        <div class="modal-body">
-          <div v-if="discountItem">
-            <div class="modal-item-preview">
-              <img :src="menuImageUrl(discountItem)" alt="">
-              <div>
-                <strong>{{ discountItem.nombre }}</strong>
-                <div>S/. {{ discountItem.precio }}</div>
-              </div>
-            </div>
-            <div class="form-group">
-              <label style="font-weight: 600; color: #444; margin-bottom: 4px; display: block;">Porcentaje de Descuento (%)</label>
-              <input v-model="discountForm.discount_percentage" type="number" min="0" max="100" step="0.01" class="form-control" placeholder="Ej: 10">
-            </div>
-            <div class="form-group">
-              <label style="font-weight: 600; color: #444; margin-bottom: 4px; display: block;">Válido Hasta</label>
-              <input v-model="discountForm.discount_expires_at" type="date" class="form-control">
-            </div>
-          </div>
-        </div>
-        <div class="modal-footer">
-          <button class="btn btn-secondary" @click="closeDiscountModal">Cancelar</button>
-          <button class="btn btn-primary" @click="submitDiscount">Guardar Oferta</button>
-        </div>
-      </div>
-    </div>
-  </div>
-  </template>
-
-<style scoped>
-.admin-page {
-  font-family: 'Segoe UI', Arial, sans-serif;
-  background: #f8f9fa;
-  min-height: 100vh;
-}
-.topbar {
-  background-color: #111827 !important;
-  padding: 15px 30px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-}
-.logo {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-.logo img {
-  height: 80px;
-}
-.logo h1 {
-  font-size: 25px;
-  color: #f1af32;
-  font-weight: 700;
-  margin: 0;
-}
-.user-actions {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-}
-.user-profile {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  background: #f8f9fa;
-  padding: 8px 12px;
-  border-radius: 20px;
-}
-.user-avatar {
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  background: #f1af32;
-  color: white;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: bold;
-  font-size: 14px;
-}
-.logout-btn {
-  background: #e53935;
-  color: white;
-  border: none;
-  padding: 8px 14px;
-  border-radius: 6px;
-  cursor: pointer;
-  font-weight: 600;
-}
-.content-area {
-  padding: 20px;
-}
-.tabs {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 14px;
-}
-.tab-btn {
-  padding: 8px 14px;
-  border-radius: 8px;
-  border: 1px solid #eee;
-  background: #fff;
-  cursor: pointer;
-  font-weight: 600;
-  color: #6e6e6e;
-}
-.tab-btn.active {
-  border-color: #ffcc80;
-  color: #f1af32;
-  background: #fff9f0;
-}
-.dashboard-stats {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 18px;
-  margin-bottom: 20px;
-}
-.stat-card {
-  background: white;
-  border-radius: 12px;
-  padding: 16px;
-  box-shadow: 0 4px 14px rgba(0,0,0,0.08);
-  border-top: 4px solid #f1af32;
-}
-.stat-value {
-  font-size: 28px;
-  font-weight: 700;
-  color: #f1af32;
-}
-.stat-label {
-  color: #6e6e6e;
-  font-size: 12px;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-.content-section {
-  background: white;
-  border-radius: 12px;
-  padding: 16px;
-  box-shadow: 0 4px 14px rgba(0,0,0,0.08);
-  margin-bottom: 18px;
-}
-.charts-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 16px;
-}
-.chart-card {
-  background: #fff;
-  border: 1px solid #eee;
-  border-radius: 12px;
-  padding: 12px;
-}
-.no-data {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 220px;
-  color: #6e6e6e;
-  font-weight: 600;
-  background: #fafafa;
-  border: 1px dashed #ddd;
-  border-radius: 8px;
-}
-.section-title {
-  font-size: 18px;
-  color: #f1af32;
-  margin-bottom: 12px;
-  border-bottom: 2px solid #ffcc80;
-  padding-bottom: 8px;
-}
-.add-form { background: #f8f9ff; border-radius: 12px; padding: 16px; margin-bottom: 16px; border: 1px solid #e0e0ff; }
-.form-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-bottom: 10px; }
-.form-group { display: flex; flex-direction: column; }
-.form-group.full-width { grid-column: 1 / -1; }
-.form-control { padding: 10px 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 1rem; background: white; }
-.form-buttons { display: flex; gap: 12px; margin-top: 8px; }
-.btn { padding: 10px 16px; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; }
-.btn-primary { background: #f1af32; color: white; border: none; }
-.btn-primary:hover { background: #e6a42b; }
-.btn-success { background: #4caf50; color: white; }
-.btn-danger { background: #e53935; color: white; }
-.btn-warning { background: #ff9800; color: white; }
-.menu-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; }
-.menu-item { background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 3px 10px rgba(0,0,0,0.08); border: 1px solid #eee; }
-.menu-item img { width: 100%; height: 150px; object-fit: cover; display: block; background: #f5f5f5; }
-.menu-content { padding: 12px; }
-.menu-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; }
-.nombre { font-weight: 700; color: #f1af32; }
-.precio { background: #ef6c00; color: white; padding: 5px 10px; border-radius: 20px; font-weight: 700; font-size: 0.95rem; white-space: nowrap; }
-.descripcion { color: #6e6e6e; margin-bottom: 10px; font-size: 0.95rem; line-height: 1.45; min-height: 60px; }
-.menu-actions { display: flex; gap: 10px; }
-.menu-actions .btn-success { background: #e0f2f1; color: #00695c; transition: background 0.2s; }
-.menu-actions .btn-success:hover { background: #b2dfdb; color: #004d40; }
-.menu-actions .btn-danger { background: #ffebee; color: #c62828; transition: background 0.2s; }
-.menu-actions .btn-danger:hover { background: #ffcdd2; color: #b71c1c; }
-.role-badge { padding: 4px 8px; border-radius: 4px; font-size: 0.8rem; font-weight: 700; text-transform: uppercase; }
-.role-badge.admin { background: #e3f2fd; color: #1565c0; }
-.role-badge.cocina { background: #fff3e0; color: #ef6c00; }
-.role-badge.pedido { background: #e8f5e9; color: #2e7d32; }
-.role-badge.caja { background: #e0f7fa; color: #006064; }
-.orders-table { width: 100%; border-collapse: collapse; }
-.orders-table th { background: #f8f9fa; color: #2b2b2b; padding: 12px; text-align: left; font-weight: 600; border-bottom: 2px solid #e0e0e0; }
-.orders-table td { padding: 12px; border-bottom: 1px solid #eee; }
-@media (max-width: 768px) { .form-grid { grid-template-columns: 1fr; } }
-.report-controls {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 16px;
-  margin-bottom: 20px;
-  align-items: flex-end;
-  background: #f5f7fa; /* Professional Light Gray-Blue */
-  padding: 20px;
-  border: 1px solid #e0e0e0; /* Matches table border */
-}
-
-.report-controls .control {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  min-width: 140px;
-  flex: 1;
-}
-
-/* Make the button control not stretch infinitely */
-.report-controls .control:last-child {
-  flex: 0 0 auto;
-}
-
-.btn-solid-orange {
-  background: #ef6c00; /* Solid Dark Orange */
-  color: white;
-  transition: background 0.2s;
-}
-.btn-solid-orange:hover {
-  background: #e65100;
-}
-
-.report-preview { margin-top: 12px; }
-@media (max-width: 900px) { .report-controls .control { min-width: 45%; } }
-@media (max-width: 480px) { .report-controls .control { min-width: 100%; } }
-
-/* Custom Table Design matching User Image & Cocina Style (Squared/Grid) */
-.custom-table {
-  width: 100%;
-  border-collapse: collapse;
-  border: 1px solid #e0e0e0; /* Outer border */
-}
-.custom-table th {
-  background-color: #f1af32;
-  color: white;
-  text-transform: uppercase;
-  font-size: 0.8rem;
-  font-weight: 700;
-  padding: 8px 12px;
-  text-align: left;
-  border: 1px solid #e6a830; /* Header grid border */
-}
-.custom-table td {
-  padding: 8px 12px;
-  border: 1px solid #e0e0e0; /* Cell grid border */
-  font-size: 0.9rem;
-  vertical-align: middle;
-}
-.custom-table tr:hover {
-  background-color: #fffdf5;
-}
-.fw-bold { font-weight: 700; color: #333; }
-.text-muted { color: #666; }
-
-.status-badge {
-  display: inline-block;
-  padding: 4px 10px;
-  border-radius: 0; /* Squared badges */
-  font-size: 0.7rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  min-width: 80px;
-  text-align: center;
-}
-/* Alternate Theme for Pedidos Tab */
-.theme-teal th {
-  background-color: #00897b;
-  border-color: #00695c;
-}
-.status-pendiente { background-color: #fff3e0; color: #ff9800; }
-.status-preparando { background-color: #e3f2fd; color: #1976d2; }
-.status-completado { background-color: #e8f5e9; color: #388e3c; }
-.status-cancelado { background-color: #ffebee; color: #d32f2f; }
-.status-default { background-color: #f5f5f5; color: #616161; }
-
-/* Discount Modal Styles */
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-}
-
-.modal {
-  background: white;
-  border-radius: 12px;
-  width: 400px;
-  max-width: 90%;
-  box-shadow: 0 4px 20px rgba(0,0,0,0.2);
-}
-
-.modal-header {
-  padding: 16px 20px;
-  border-bottom: 1px solid #eee;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.modal-header h3 {
-  margin: 0;
-  color: #333;
-}
-
-.modal-close {
-  background: none;
-  border: none;
-  font-size: 24px;
-  cursor: pointer;
-  color: #666;
-}
-
-.modal-body {
-  padding: 20px;
-}
-
-.modal-item-preview {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 20px;
-  padding: 10px;
-  background: #f9f9f9;
-  border-radius: 8px;
-}
-
-.modal-item-preview img {
-  width: 60px;
-  height: 60px;
-  object-fit: cover;
-  border-radius: 6px;
-}
-
-.modal-footer {
-  padding: 16px 20px;
-  border-top: 1px solid #eee;
-  display: flex;
-  justify-content: flex-end;
-  gap: 10px;
-}
-
-.btn-secondary {
-  background: #6c757d;
-  color: white;
-}
-</style>
+    <DiscountModal 
+      :show="showDiscountModal"
+      :discount-item="discountItem"
+      :discount-form="discountForm"
+      @close="closeDiscountModal"
+      @save="submitDiscount"
+      @update:discount-form="discountForm = $event"
+    />
+</template>

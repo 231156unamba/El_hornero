@@ -61,8 +61,14 @@ class MenuController extends Controller
                 'discount_percentage' => null,
                 'discount_expires_at' => null
             ]);
-            
-            $menu = Menu::orderBy('id')->get();
+
+            $query = Menu::query();
+            $categoria = trim((string) $request->query('categoria', ''));
+            if ($categoria !== '') {
+                $query->whereRaw('LOWER(categoria) = ?', [strtolower($categoria)]);
+            }
+
+            $menu = $query->orderBy('id')->get();
             $data = $menu->map(function ($item) use ($request) {
                 return [
                     'id' => (int) $item->id,
