@@ -1,5 +1,6 @@
 <script setup>
 import api from '../../api';
+import '../../styles/modal.css';
 
 const props = defineProps({
   show: {
@@ -68,16 +69,3 @@ const saveDiscount = async () => {
     </div>
   </div>
 </template>
-
-<style scoped>
-.form-group {
-  margin-bottom: 16px;
-}
-
-.form-group label {
-  display: block;
-  margin-bottom: 6px;
-  font-weight: 600;
-  color: #444;
-}
-</style>

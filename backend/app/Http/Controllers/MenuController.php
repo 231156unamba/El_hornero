@@ -68,6 +68,13 @@ class MenuController extends Controller
                 $query->whereRaw('LOWER(categoria) = ?', [strtolower($categoria)]);
             }
 
+            // Si la petición viene del admin (query param admin=1) devuelve todos,
+            // de lo contrario solo devuelve los habilitados para la vista pública.
+            $isAdmin = $request->query('admin') === '1';
+            if (!$isAdmin) {
+                $query->where('estado', 'habilitado');
+            }
+
             $menu = $query->orderBy('id')->get();
             $data = $menu->map(function ($item) use ($request) {
                 return [
@@ -78,6 +85,8 @@ class MenuController extends Controller
                     'imagen' => $item->imagen ? basename((string) $item->imagen) : null,
                     'imagen_url' => $this->menuImageUrlFromName($request, $item->imagen ? (string) $item->imagen : null),
                     'categoria' => (string) $item->categoria,
+                    'estado' => (string) $item->estado,
+                    'activo' => (bool) ($item->estado === 'habilitado'),
                     'discount_percentage' => $item->discount_percentage ? (float) $item->discount_percentage : null,
                     'discount_expires_at' => $item->discount_expires_at ? $item->discount_expires_at->toDateTimeString() : null,
                 ];
@@ -96,7 +105,7 @@ class MenuController extends Controller
             'precio' => 'required|numeric|min:0',
             'descripcion' => 'required|string',
             'imagen' => 'required|file|mimes:jpeg,png,jpg,gif,webp|max:4096',
-            'categoria' => 'required|string|in:bebidas,comida,promociones',
+            'categoria' => 'required|string|in:comida,bebida,promocion',
             'discount_percentage' => 'nullable|numeric|min:0|max:100',
             'discount_expires_at' => 'nullable|date',
         ]);
@@ -124,7 +133,7 @@ class MenuController extends Controller
             'nombre' => 'sometimes|required|string',
             'precio' => 'sometimes|required|numeric|min:0',
             'descripcion' => 'sometimes|required|string',
-            'categoria' => 'sometimes|required|string|in:bebidas,comida,promociones',
+            'categoria' => 'sometimes|required|string|in:comida,bebida,promocion',
             'imagen' => 'nullable|file|mimes:jpeg,png,jpg,gif,webp|max:4096',
             'discount_percentage' => 'nullable|numeric|min:0|max:100',
             'discount_expires_at' => 'nullable|date',
@@ -189,5 +198,16 @@ class MenuController extends Controller
         }
         $menu->delete();
         return response()->json(['success' => true, 'image_deleted' => $imageDeleted]);
+    }
+
+    public function toggle($id)
+    {
+        $menu = Menu::find($id);
+        if (!$menu) {
+            return response()->json(['success' => false, 'error' => 'No encontrado'], 404);
+        }
+        $menu->estado = $menu->estado === 'habilitado' ? 'deshabilitado' : 'habilitado';
+        $menu->save();
+        return response()->json(['success' => true, 'estado' => (string) $menu->estado, 'activo' => (bool) ($menu->estado === 'habilitado')]);
     }
 }
