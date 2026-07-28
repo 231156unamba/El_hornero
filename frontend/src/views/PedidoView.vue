@@ -1,139 +1,127 @@
 <script setup>
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted, onUnmounted, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import api from '../api';
 
 const router = useRouter();
-const pedidos = ref([]);
-const pedidosAnteriores = ref([]); // Track previous state for new ready orders
-const avisos = ref([]);
-const mesas = Array.from({ length: 10 }, (_, i) => i + 1);
-const mesaSeleccionada = ref('');
-const menu = ref([]);
-const platoSeleccionado = ref('');
-const cantidad = ref(1);
-const carrito = ref([]);
-const ajustePrecio = ref(null);
-const ajusteDescripcion = ref('');
-const usuarioNombre = ref('');
-const bebidaSeleccionada = ref('');
-const cantidadBebida = ref(1);
-const tipoServicio = ref('local');
+const pedidos           = ref([]);
+const pedidosAnteriores = ref([]);
+const avisos            = ref([]);
+const mesas             = Array.from({ length: 10 }, (_, i) => i + 1);
+const mesaSeleccionada  = ref('');
+const menu              = ref([]);
+const platoSeleccionado      = ref('');
+const cantidad               = ref(1);
+const bebidaSeleccionada     = ref('');
+const cantidadBebida         = ref(1);
+const promocionSeleccionada  = ref('');
+const cantidadPromocion      = ref(1);
+const carrito                = ref([]);
+const ajustePrecio           = ref(null);
+const ajusteDescripcion      = ref('');
+const tipoServicio           = ref('local');
+const usuarioNombre          = ref('');
 const apiOrigin = new URL(api.defaults.baseURL).origin;
 
-const platosMenu = computed(() => menu.value.filter(p => (p.categoria || 'comida') === 'comida'));
-const bebidasMenu = computed(() => menu.value.filter(p => (p.categoria || 'comida') === 'bebidas'));
+// ── Filtros de categoría (valores exactos de la BD) ──────────
+const platosMenu     = computed(() => menu.value.filter(p => (p.categoria || '').toLowerCase() === 'comida'));
+const bebidasMenu    = computed(() => menu.value.filter(p => (p.categoria || '').toLowerCase() === 'bebida'));
+const promocionesMenu= computed(() => menu.value.filter(p => (p.categoria || '').toLowerCase() === 'promocion'));
 
-const mesasOcupadas = computed(() => {
-  return pedidos.value.filter(p => p.estado !== 'pagado' && p.estado !== 'cancelado').map(p => parseInt(p.mesa));
-});
+const mesasOcupadas = computed(() =>
+  pedidos.value
+    .filter(p => p.estado !== 'pagado' && p.estado !== 'cancelado')
+    .map(p => parseInt(p.mesa))
+);
 
-// Create a simple beep sound using Web Audio API (no external files needed)
+// ── Sonido de aviso ──────────────────────────────────────────
 const reproducirSonido = () => {
   try {
-    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-    const oscillator = audioContext.createOscillator();
-    const gainNode = audioContext.createGain();
-    
-    oscillator.connect(gainNode);
-    gainNode.connect(audioContext.destination);
-    
-    oscillator.type = 'sine';
-    oscillator.frequency.value = 800;
-    gainNode.gain.value = 0.5;
-    
-    oscillator.start();
-    gainNode.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 0.5);
-    oscillator.stop(audioContext.currentTime + 0.5);
-  } catch (e) {
-    console.error('Error playing sound:', e);
-  }
+    const ctx  = new (window.AudioContext || window.webkitAudioContext)();
+    const osc  = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.type = 'sine';
+    osc.frequency.value = 800;
+    gain.gain.value = 0.5;
+    osc.start();
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5);
+    osc.stop(ctx.currentTime + 0.5);
+  } catch (e) { console.error(e); }
 };
 
-const mostrarAviso = (mensaje) => {
-  avisos.value.push(mensaje);
-  setTimeout(() => {
-    avisos.value.shift();
-  }, 5000);
+const mostrarAviso = (msg) => {
+  avisos.value.push(msg);
+  setTimeout(() => avisos.value.shift(), 5000);
 };
 
-// Verificar sesión
+const menuChannel = new BroadcastChannel('menu-updates');
+
 onMounted(async () => {
-  const rol = localStorage.getItem('rol');
-  if (rol !== 'pedido') { router.push('/login'); return; }
-  
+  if (localStorage.getItem('rol') !== 'pedido') { router.push('/login'); return; }
   usuarioNombre.value = localStorage.getItem('usuario') || 'Mesero';
-  
   await fetchMenu();
   await fetchPedidos();
-  pedidosAnteriores.value = [...pedidos.value]; // Initialize previous state
-  // Polling para mantener estado de mesas actualizado
+  pedidosAnteriores.value = [...pedidos.value];
   setInterval(fetchPedidos, 5000);
+  menuChannel.addEventListener('message', (e) => {
+    if (e.data.type === 'menu-changed') fetchMenu();
+  });
 });
+
+onUnmounted(() => menuChannel.close());
 
 const fetchMenu = async () => {
   try {
-    const response = await api.get('/menu');
-    menu.value = response.data;
-  } catch (error) {
-    console.error('Error cargando menú:', error);
-  }
+    const r = await api.get('/menu');
+    menu.value = r.data;
+  } catch (e) { console.error(e); }
 };
 
 const fetchPedidos = async () => {
   try {
-    const response = await api.get('/pedidos');
-    const nuevosPedidos = response.data;
-    
-    // Check for new orders that are now "preparado"
-    for (const pedido of nuevosPedidos) {
-      const pedidoAnterior = pedidosAnteriores.value.find(p => p.id === pedido.id);
-      if (pedidoAnterior && pedidoAnterior.estado !== 'preparado' && pedido.estado === 'preparado') {
+    const r = await api.get('/pedidos');
+    const nuevos = r.data;
+    for (const p of nuevos) {
+      const ant = pedidosAnteriores.value.find(x => x.id === p.id);
+      if (ant && ant.estado !== 'preparado' && p.estado === 'preparado') {
         reproducirSonido();
-        mostrarAviso(`¡Pedido listo! Mesa ${pedido.mesa}`);
+        mostrarAviso(`¡Pedido listo! Mesa ${p.mesa}`);
       }
     }
-    
-    pedidos.value = nuevosPedidos;
-    pedidosAnteriores.value = [...nuevosPedidos];
-  } catch (error) {
-    console.error('Error obteniendo pedidos:', error);
-  }
+    pedidos.value = nuevos;
+    pedidosAnteriores.value = [...nuevos];
+  } catch (e) { console.error(e); }
 };
 
-const agregarTarjeta = () => {
-  if (!platoSeleccionado.value) return;
-  const plato = menu.value.find(p => p.id === platoSeleccionado.value);
-  if (plato) {
-    carrito.value.push({
-      ...plato,
-      cantidad: cantidad.value
-    });
-    // Reset inputs
-    platoSeleccionado.value = '';
-    cantidad.value = 1;
-  }
+// ── Helpers de carrito ───────────────────────────────────────
+const agregarAlCarrito = (idRef, cantRef) => {
+  const item = menu.value.find(p => p.id === idRef.value);
+  if (!item) return;
+  carrito.value.push({ ...item, cantidad: cantRef.value });
+  idRef.value   = '';
+  cantRef.value = 1;
 };
 
-const agregarBebida = () => {
-  if (!bebidaSeleccionada.value) return;
-  const bebida = menu.value.find(p => p.id === bebidaSeleccionada.value);
-  if (bebida) {
-    carrito.value.push({
-      ...bebida,
-      cantidad: cantidadBebida.value
-    });
-    bebidaSeleccionada.value = '';
-    cantidadBebida.value = 1;
-  }
-};
+const agregarTarjeta   = () => agregarAlCarrito(platoSeleccionado,     cantidad);
+const agregarBebida    = () => agregarAlCarrito(bebidaSeleccionada,    cantidadBebida);
+const agregarPromocion = () => agregarAlCarrito(promocionSeleccionada, cantidadPromocion);
 
-// Removido: porciones/extras
+const eliminarDelCarrito = (idx) => carrito.value.splice(idx, 1);
 
-const eliminarDelCarrito = (index) => {
-  carrito.value.splice(index, 1);
-};
+const getDiscountedPrice = (item) =>
+  item.discount_percentage
+    ? parseFloat(item.precio) * (1 - item.discount_percentage / 100)
+    : parseFloat(item.precio);
 
+const total = computed(() => {
+  let s = carrito.value.reduce((a, i) => a + getDiscountedPrice(i) * i.cantidad, 0);
+  if (ajustePrecio.value) s += parseFloat(ajustePrecio.value);
+  return s.toFixed(2);
+});
+
+// ── Imagen ───────────────────────────────────────────────────
 const menuImageUrl = (obj) => {
   if (!obj) return '';
   if (obj.imagen_url) return obj.imagen_url;
@@ -149,342 +137,342 @@ const buscarMenuPorNombre = (nombre) => {
   return menu.value.find(m => (m.nombre || '').trim().toLowerCase() === n) || null;
 };
 
-const itemsDePedido = (p) => {
-  const d = String(p.detalle || '');
-  return d.split(',').map(s => s.trim()).map(s => {
-    const m = s.match(/^\s*(\d+)\s*x\s*(.+)$/i);
+const itemsDePedido = (p) =>
+  String(p.detalle || '').split(',').map(s => {
+    const m = s.trim().match(/^\s*(\d+)\s*x\s*(.+)$/i);
     const nombre = m ? String(m[2]).replace(/\(.*$/, '').trim() : String(s).replace(/\(.*$/, '').trim();
     return buscarMenuPorNombre(nombre);
   }).filter(Boolean);
-};
 
-const getDiscountedPrice = (item) => {
-  if (!item.discount_percentage) return parseFloat(item.precio);
-  return parseFloat(item.precio) * (1 - item.discount_percentage / 100);
-};
-
-const total = computed(() => {
-  let sum = carrito.value.reduce((acc, item) => acc + (getDiscountedPrice(item) * item.cantidad), 0);
-  if (ajustePrecio.value) {
-    sum += parseFloat(ajustePrecio.value);
-  }
-  return sum.toFixed(2);
-});
-
+// ── Crear pedido ─────────────────────────────────────────────
 const crearPedido = async () => {
   if (!mesaSeleccionada.value || carrito.value.length === 0) return;
-
-  // Construir detalle string
-  let detalleStr = carrito.value.map(item => `${item.cantidad}x ${item.nombre}`).join(', ');
-  if (ajustePrecio.value) {
-    detalleStr += ` (Ajuste: ${ajusteDescripcion.value} S/.${ajustePrecio.value})`;
-  }
+  let detalle = carrito.value.map(i => `${i.cantidad}x ${i.nombre}`).join(', ');
+  if (ajustePrecio.value) detalle += ` (Ajuste: ${ajusteDescripcion.value} S/.${ajustePrecio.value})`;
 
   try {
-    const response = await api.post('/pedidos', {
-      mesa: mesaSeleccionada.value,
-      detalle: detalleStr,
-      usuario_id: Number(localStorage.getItem('userId')) || undefined,
-      tipo_servicio: tipoServicio.value
+    const r = await api.post('/pedidos', {
+      mesa:        mesaSeleccionada.value,
+      detalle,
+      usuario_id:  Number(localStorage.getItem('userId')) || undefined,
+      tipo_servicio: tipoServicio.value,
     });
-
-    if (response.data.success) {
-      mesaSeleccionada.value = '';
-      carrito.value = [];
-      ajustePrecio.value = null;
-      ajusteDescripcion.value = '';
-      fetchPedidos(); // Recargar lista
-      alert('Pedido enviado a cocina correctamente');
-    } else {
-      alert('Error al crear pedido');
-    }
-  } catch (error) {
-    console.error(error);
-    alert('Error de conexión');
-  }
-};
-
-const cancelarPedido = async (pedido) => {
-  try {
-    if (String(pedido.estado).toLowerCase() !== 'pedido') {
-      alert('Solo se puede cancelar pedidos en estado pedido.');
-      return;
-    }
-    const ok = confirm(`¿Cancelar pedido de la mesa ${pedido.mesa}?`);
-    if (!ok) return;
-    const r = await api.delete(`/pedidos/${pedido.id}`);
-    if (r.data?.success) {
+    if (r.data.success) {
+      mesaSeleccionada.value     = '';
+      carrito.value              = [];
+      ajustePrecio.value         = null;
+      ajusteDescripcion.value    = '';
       fetchPedidos();
-      alert('Pedido cancelado.');
-    } else {
-      alert(r.data?.error || 'No se pudo cancelar el pedido.');
-    }
-  } catch (e) {
-    console.error(e);
-    alert('Error al cancelar el pedido.');
+      alert('Pedido enviado a cocina correctamente');
+    } else { alert('Error al crear pedido'); }
+  } catch (e) { console.error(e); alert('Error de conexión'); }
+};
+
+const cancelarPedido = async (p) => {
+  if (String(p.estado).toLowerCase() !== 'pedido') {
+    alert('Solo se puede cancelar pedidos en estado pedido.'); return;
   }
+  if (!confirm(`¿Cancelar pedido de la mesa ${p.mesa}?`)) return;
+  try {
+    const r = await api.delete(`/pedidos/${p.id}`);
+    if (r.data?.success) { fetchPedidos(); alert('Pedido cancelado.'); }
+    else alert(r.data?.error || 'No se pudo cancelar el pedido.');
+  } catch (e) { console.error(e); alert('Error al cancelar el pedido.'); }
 };
 
-const formatHora = (fechaStr) => {
-  if (!fechaStr) return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  
-  const isoStr = fechaStr.includes(' ') ? fechaStr.replace(' ', 'T') + 'Z' : fechaStr;
-  const date = new Date(isoStr);
-  
-  return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+// ── Clase de color del order-card ────────────────────────────
+const orderCardClass = (estado) => {
+  const e = (estado || '').toLowerCase();
+  if (e === 'pedido')    return 'oc-pedido';
+  if (e === 'cocinando') return 'oc-cocinando';
+  if (e === 'preparado') return 'oc-preparado';
+  if (e === 'entregado') return 'oc-entregado';
+  if (e === 'pagado')    return 'oc-pagado';
+  return '';
 };
 
-const logout = () => {
-  localStorage.clear();
-  router.push('/login');
+const fechaPedidoKey = (valor) => {
+  if (!valor) return '';
+  const parsed = new Date(valor);
+  if (Number.isNaN(parsed.getTime())) return '';
+  return `${parsed.getFullYear()}-${String(parsed.getMonth() + 1).padStart(2, '0')}-${String(parsed.getDate()).padStart(2, '0')}`;
 };
+
+const pedidosDelDia = computed(() => {
+  const hoy = new Date();
+  const hoyKey = `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}-${String(hoy.getDate()).padStart(2, '0')}`;
+  return pedidos.value.filter(p => fechaPedidoKey(p.fecha || p.created_at || p.createdAt) === hoyKey);
+});
+
+const estadoLabel = (estado) => {
+  const map = { pedido: 'En cocina', cocinando: 'Cocinando', preparado: '¡LISTO!', entregado: 'Entregado', pagado: 'Pagado' };
+  return map[(estado || '').toLowerCase()] ?? (estado || '').toUpperCase();
+};
+
+const formatHora = (f) => {
+  if (!f) return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const iso = f.includes(' ') ? f.replace(' ', 'T') + 'Z' : f;
+  return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+};
+
+const logout = () => { localStorage.clear(); router.push('/login'); };
 </script>
 
 <template>
   <div class="pedido-layout">
-    <!-- Navbar / Header -->
+
+    <!-- Header -->
     <header class="navbar">
-      <div class="brand">
-        <h1>EL HORNERO</h1>
-      </div>
-      
+      <div class="brand"><h1>EL HORNERO</h1></div>
       <div class="user-control">
         <div class="user-profile">
           <div class="user-avatar">M</div>
-          <span>Mesero</span>
+          <span>{{ usuarioNombre }}</span>
         </div>
-        <button class="logout-btn" @click="logout">
-          Cerrar Sesión
-        </button>
+        <button class="logout-btn" @click="logout">Cerrar Sesión</button>
       </div>
     </header>
 
     <div class="main-content">
-      
-      <!-- Left Panel: Order Creation -->
+
+      <!-- ── Panel izquierdo: Nuevo pedido ── -->
       <section class="order-creation-panel">
         <div class="card">
           <div class="card-header">
-            <h2>Nuevo Pedido</h2>
+            <h2>🧾 Nuevo Pedido</h2>
           </div>
           <div class="card-body">
-            
-            <!-- Mesa Selection (Visual Grid) -->
+
+            <!-- Selección de mesa -->
             <div class="form-group">
               <label>Seleccionar Mesa</label>
               <div class="table-grid-selector">
-                <button 
-                  v-for="m in mesas" 
-                  :key="m" 
+                <button
+                  v-for="m in mesas" :key="m"
                   class="table-btn"
-                  :class="{ 
-                      selected: mesaSeleccionada === m,
-                      occupied: mesasOcupadas.includes(m)
-                  }"
+                  :class="{ selected: mesaSeleccionada === m, occupied: mesasOcupadas.includes(m) }"
                   @click="mesaSeleccionada = m"
-                >
-                  {{ m }}
-                </button>
+                >{{ m }}</button>
               </div>
             </div>
-            
+
+            <!-- Tipo de servicio -->
             <div class="form-group">
               <label>Tipo de servicio</label>
               <select v-model="tipoServicio">
-                <option value="local">Local</option>
-                <option value="llevar">Para llevar</option>
+                <option value="local">🍽️ Local</option>
+                <option value="llevar">🛍️ Para llevar</option>
               </select>
             </div>
 
-            <!-- Comida Section -->
-            <div class="product-box">
-              <label>Comida / Platos</label>
-              <div class="add-item-grid">
-                <div class="select-wrapper item-select">
-                  <select v-model.number="platoSeleccionado">
-                    <option value="">-- Seleccionar Plato --</option>
+            <div class="product-selector-grid">
+              <!-- Comida -->
+              <div class="product-box">
+                <div class="product-box-header">
+                  <span class="pbox-icon">🍽️</span>
+                  <span class="pbox-title">Comida / Platos</span>
+                </div>
+                <div class="add-item-grid">
+                  <select v-model.number="platoSeleccionado" class="item-select">
+                    <option value="">— Seleccionar plato —</option>
                     <option v-for="p in platosMenu" :key="p.id" :value="p.id">
-                        {{ p.nombre }} - S/ {{ parseFloat(p.precio).toFixed(2) }}
+                      {{ p.nombre }} · S/ {{ parseFloat(p.precio).toFixed(2) }}
                     </option>
                   </select>
+                  <div class="qty-block">
+                    <span class="qty-label">Cantidad</span>
+                    <div class="qty-actions">
+                      <button type="button" @click="cantidad = Math.max(1, cantidad - 1)">−</button>
+                      <input type="number" v-model.number="cantidad" min="1" class="qty-input" />
+                      <button type="button" @click="cantidad++">+</button>
+                    </div>
+                  </div>
+                  <button class="btn-add" @click="agregarTarjeta" :disabled="!platoSeleccionado">Añadir</button>
                 </div>
-                
-                <div class="qty-actions">
-                  <button type="button" @click="cantidad = Math.max(1, cantidad - 1)">-</button>
-                  <input type="number" v-model.number="cantidad" min="1" class="qty-input">
-                  <button type="button" @click="cantidad++">+</button>
+              </div>
+
+              <!-- Bebidas -->
+              <div class="product-box product-box--bebida">
+                <div class="product-box-header">
+                  <span class="pbox-icon">🥤</span>
+                  <span class="pbox-title">Bebidas</span>
                 </div>
-                
-                <button class="btn-add" @click="agregarTarjeta" :disabled="!platoSeleccionado">
-                  Añadir
-                </button>
+                <div class="add-item-grid">
+                  <select v-model.number="bebidaSeleccionada" class="item-select">
+                    <option value="">— Seleccionar bebida —</option>
+                    <option v-for="b in bebidasMenu" :key="b.id" :value="b.id">
+                      {{ b.nombre }} · S/ {{ parseFloat(b.precio).toFixed(2) }}
+                    </option>
+                  </select>
+                  <div class="qty-block">
+                    <span class="qty-label">Cantidad</span>
+                    <div class="qty-actions">
+                      <button type="button" @click="cantidadBebida = Math.max(1, cantidadBebida - 1)">−</button>
+                      <input type="number" v-model.number="cantidadBebida" min="1" class="qty-input" />
+                      <button type="button" @click="cantidadBebida++">+</button>
+                    </div>
+                  </div>
+                  <button class="btn-add btn-add--bebida" @click="agregarBebida" :disabled="!bebidaSeleccionada">Añadir</button>
+                </div>
+              </div>
+
+              <!-- Promociones -->
+              <div class="product-box product-box--promo">
+                <div class="product-box-header">
+                  <span class="pbox-icon">🎉</span>
+                  <span class="pbox-title">Promociones</span>
+                </div>
+                <div class="add-item-grid">
+                  <select v-model.number="promocionSeleccionada" class="item-select">
+                    <option value="">— Seleccionar promoción —</option>
+                    <option v-for="p in promocionesMenu" :key="p.id" :value="p.id">
+                      {{ p.nombre }} · S/ {{ parseFloat(p.precio).toFixed(2) }}
+                    </option>
+                  </select>
+                  <div class="qty-block">
+                    <span class="qty-label">Cantidad</span>
+                    <div class="qty-actions">
+                      <button type="button" @click="cantidadPromocion = Math.max(1, cantidadPromocion - 1)">−</button>
+                      <input type="number" v-model.number="cantidadPromocion" min="1" class="qty-input" />
+                      <button type="button" @click="cantidadPromocion++">+</button>
+                    </div>
+                  </div>
+                  <button class="btn-add btn-add--promo" @click="agregarPromocion" :disabled="!promocionSeleccionada">Añadir</button>
+                </div>
               </div>
             </div>
 
-            <!-- Parallel Sections: Porciones & Bebidas -->
-            <!-- Bebidas Section -->
-            <div class="product-box drinks-box">
-                <label>Bebidas / Refrescos</label>
-                <div class="add-item-grid">
-                  <div class="select-wrapper item-select">
-                    <select v-model.number="bebidaSeleccionada">
-                      <option value="">-- Seleccionar --</option>
-                      <option v-for="b in bebidasMenu" :key="b.id" :value="b.id">
-                          {{ b.nombre }}
-                      </option>
-                    </select>
-                  </div>
-                  
-                  <div class="qty-actions">
-                    <button type="button" @click="cantidadBebida = Math.max(1, cantidadBebida - 1)">-</button>
-                    <input type="number" v-model.number="cantidadBebida" min="1" class="qty-input">
-                    <button type="button" @click="cantidadBebida++">+</button>
-                  </div>
-                  
-                  <button class="btn-add btn-drink" @click="agregarBebida" :disabled="!bebidaSeleccionada">
-                    Añadir
-                  </button>
-                </div>
+            <!-- Ajuste de precio — siempre visible -->
+            <div class="ajuste-panel">
+              <div class="ajuste-panel-header">
+                <span>⚙️ Ajuste de precio</span>
+                <span class="ajuste-hint">Opcional — usa valores negativos para descuentos</span>
+              </div>
+              <div class="ajuste-grid">
+                <input v-model.number="ajustePrecio" type="number" placeholder="S/ Extra / Descuento" step="0.10" />
+                <input v-model="ajusteDescripcion" type="text" placeholder="Motivo (ej. Extra queso)" />
+              </div>
             </div>
 
-            <!-- Extras -->
-            <div class="extra-options">
-               <details>
-                   <summary>Opciones Avanzadas (Ajustes de Precio)</summary>
-                   <div class="ajuste-grid">
-                       <input v-model.number="ajustePrecio" type="number" placeholder="S/ Extra" step="0.10" />
-                       <input v-model="ajusteDescripcion" type="text" placeholder="Motivo (ej. Extra queso)">
-                   </div>
-               </details>
-            </div>
-
-            <!-- Cart Preview -->
+            <!-- Resumen del carrito -->
             <div class="cart-preview">
-                <h3>Resumen del Pedido</h3>
-                <div v-if="carrito.length === 0" class="empty-cart">
-                    No hay items en el pedido actual.
-                </div>
-                <ul v-else class="cart-list">
-                    <li v-for="(item, index) in carrito" :key="index">
-                        <div class="cart-item-info">
-                            <img :src="menuImageUrl(item)" alt="" class="thumb">
-                            <span class="qty">{{ item.cantidad }}x</span>
-                            <span class="name">{{ item.nombre }}</span>
-                        </div>
-                        <div class="cart-item-price">
-                            <span v-if="item.discount_percentage" style="text-decoration: line-through; color: #777; font-size: 0.9em; margin-right: 5px;">
-                                S/ {{ (item.precio * item.cantidad).toFixed(2) }}
-                            </span>
-                            S/ {{ (getDiscountedPrice(item) * item.cantidad).toFixed(2) }}
-                            <span v-if="item.discount_percentage" style="background: #ef5350; color: white; padding: 2px 6px; border-radius: 4px; font-size: 0.75em; margin-left: 5px;">
-                                -{{ item.discount_percentage }}%
-                            </span>
-                            <button @click="eliminarDelCarrito(index)" class="btn-remove">×</button>
-                        </div>
-                    </li>
-                </ul>
-                
-                <div class="cart-total">
-                    <span>Total Estimado:</span>
-                    <span class="amount">S/ {{ total }}</span>
-                </div>
+              <h3>Resumen del pedido</h3>
+              <div v-if="carrito.length === 0" class="empty-cart">No hay ítems en el pedido.</div>
+              <ul v-else class="cart-list">
+                <li v-for="(item, idx) in carrito" :key="idx">
+                  <div class="cart-item-info">
+                    <img :src="menuImageUrl(item)" alt="" class="thumb" />
+                    <span class="qty">{{ item.cantidad }}×</span>
+                    <span class="name">{{ item.nombre }}</span>
+                  </div>
+                  <div class="cart-item-price">
+                    <span v-if="item.discount_percentage" class="price-original">
+                      S/ {{ (parseFloat(item.precio) * item.cantidad).toFixed(2) }}
+                    </span>
+                    S/ {{ (getDiscountedPrice(item) * item.cantidad).toFixed(2) }}
+                    <span v-if="item.discount_percentage" class="discount-tag">
+                      −{{ item.discount_percentage }}%
+                    </span>
+                    <button class="btn-remove" @click="eliminarDelCarrito(idx)">×</button>
+                  </div>
+                </li>
+              </ul>
+              <div class="cart-total">
+                <span>Total estimado</span>
+                <span class="amount">S/ {{ total }}</span>
+              </div>
             </div>
-            
-            <button class="btn-submit" :disabled="carrito.length === 0 || !mesaSeleccionada" @click="crearPedido">
-                ENVIAR A COCINA
-            </button>
+
+            <button
+              class="btn-submit"
+              :disabled="carrito.length === 0 || !mesaSeleccionada"
+              @click="crearPedido"
+            >🍳 ENVIAR A COCINA</button>
 
           </div>
         </div>
       </section>
 
-      <!-- Right Panel: Active Orders List -->
+      <!-- ── Panel derecho: Pedidos en curso ── -->
       <section class="active-orders-panel">
-         <h3>Pedidos en Curso</h3>
-         <div class="orders-list">
-             <div v-for="p in pedidos" 
-                  :key="p.id" 
-                  class="order-card"
-                  :class="{ 
-                      'status-ready': p.estado === 'preparado', 
-                      'status-pending': p.estado === 'pedido',
-                      'status-delivered': p.estado === 'entregado'
-                  }">
-                <div class="order-header">
-                    <span class="table-badge">Mesa {{ p.mesa }}</span>
-                    <span class="time">{{ formatHora(p.fecha) }}</span>
-                </div>
-                <div class="order-body">
-                    <p>{{ p.detalle }}</p>
-                    <p style="margin-top:6px; color:#6b7280;">Tipo: {{ p.tipo_servicio === 'llevar' ? 'Para llevar' : 'Local' }}</p>
-                    <div class="thumbs">
-                      <img v-for="it in itemsDePedido(p)" :key="it.id" :src="menuImageUrl(it)" alt="" class="thumb">
-                    </div>
-                </div>
-                <div class="order-footer">
-                    <span style="float:left; font-weight:700; color:#b45309;">Costo: S/ {{ Number(p.costo || 0).toFixed(2) }}</span>
-                    <span class="status-pill">
-                        {{ p.estado === 'pedido' ? 'En Cocina' : (p.estado === 'preparado' ? '¡LISTO!' : p.estado.toUpperCase()) }}
-                    </span>
-                    <button class="btn-cancel" @click="cancelarPedido(p)" :disabled="String(p.estado).toLowerCase() !== 'pedido'">Cancelar</button>
-                </div>
-             </div>
-         </div>
+
+        <div class="orders-panel-header">
+          <h3>Pedidos en curso</h3>
+        </div>
+
+        <!-- Guía de colores -->
+        <div class="color-legend">
+          <div class="legend-item"><span class="legend-dot dot-pedido"></span>En cocina</div>
+          <div class="legend-item"><span class="legend-dot dot-cocinando"></span>Cocinando</div>
+          <div class="legend-item"><span class="legend-dot dot-preparado"></span>Listo</div>
+          <div class="legend-item"><span class="legend-dot dot-entregado"></span>Entregado</div>
+          <div class="legend-item"><span class="legend-dot dot-pagado"></span>Pagado</div>
+        </div>
+
+        <div class="orders-list">
+          <div
+            v-for="p in pedidosDelDia" :key="p.id"
+            class="order-card"
+            :class="orderCardClass(p.estado)"
+          >
+            <!-- Advertencia pedido de día anterior -->
+            <!-- (oculto: limpieza diaria restaurada) -->
+
+            <div class="order-header">
+              <span class="table-badge">Mesa {{ p.mesa }}</span>
+              <span class="status-pill">{{ estadoLabel(p.estado) }}</span>
+              <span class="time">{{ formatHora(p.fecha) }}</span>
+            </div>
+            <div class="order-body">
+              <p>{{ p.detalle }}</p>
+              <p class="order-service">{{ p.tipo_servicio === 'llevar' ? '🛍️ Para llevar' : '🍽️ Local' }}</p>
+              <div class="thumbs">
+                <img v-for="it in itemsDePedido(p)" :key="it.id" :src="menuImageUrl(it)" alt="" class="thumb" />
+              </div>
+            </div>
+            <div class="order-footer">
+              <span class="order-costo">S/ {{ Number(p.costo || 0).toFixed(2) }}</span>
+              <div class="order-footer-actions">
+                <button class="btn-cancel" @click="cancelarPedido(p)" :disabled="String(p.estado).toLowerCase() !== 'pedido'">
+                  Cancelar
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div v-if="pedidosDelDia.length === 0" class="empty-orders">
+            Sin pedidos activos hoy
+          </div>
+        </div>
       </section>
 
     </div>
-    
+
     <!-- Toast notifications -->
     <div class="toast-container">
       <transition-group name="toast">
-        <div v-for="(aviso, index) in avisos" :key="index" class="toast">
-          🔔 {{ aviso }}
-        </div>
+        <div v-for="(aviso, i) in avisos" :key="i" class="toast">🔔 {{ aviso }}</div>
       </transition-group>
     </div>
   </div>
 </template>
 
-<style src="../styles/pedido.css" scoped>
-</style>
+<style src="../styles/pedido.css" scoped></style>
 
 <style scoped>
 .toast-container {
-  position: fixed;
-  top: 100px;
-  right: 20px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  z-index: 1000;
+  position: fixed; top: 100px; right: 20px;
+  display: flex; flex-direction: column; gap: 10px; z-index: 1000;
 }
-
 .toast {
-  background: #10b981;
-  color: white;
-  padding: 15px 25px;
-  border-radius: 8px;
-  font-weight: 700;
-  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
-  animation: slideIn 0.3s ease-out;
+  background: #10b981; color: white;
+  padding: 15px 25px; border-radius: 8px; font-weight: 700;
+  box-shadow: 0 4px 12px rgba(16,185,129,0.4);
 }
-
+.toast-enter-active { animation: slideIn 0.3s ease-out; }
+.toast-leave-active { animation: slideIn 0.3s ease-out reverse; }
 @keyframes slideIn {
-  from {
-    transform: translateX(100%);
-    opacity: 0;
-  }
-  to {
-    transform: translateX(0);
-    opacity: 1;
-  }
-}
-
-.toast-enter-active {
-  animation: slideIn 0.3s ease-out;
-}
-
-.toast-leave-active {
-  animation: slideIn 0.3s ease-out reverse;
+  from { transform: translateX(100%); opacity: 0; }
+  to   { transform: translateX(0);    opacity: 1; }
 }
 </style>

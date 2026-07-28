@@ -18,11 +18,22 @@ class Menu extends Model
         'descripcion',
         'imagen',
         'categoria',
+        'estado',
         'discount_percentage',
         'discount_expires_at',
     ];
-    
+
     protected $casts = [
         'discount_expires_at' => 'datetime',
     ];
+
+    public function getActivoAttribute()
+    {
+        return $this->estado === 'habilitado';
+    }
+
+    public function setActivoAttribute($value)
+    {
+        $this->estado = $value ? 'habilitado' : 'deshabilitado';
+    }
 }

@@ -13,6 +13,7 @@ class VentasDiariasGrafica extends Grafica
     public function obtenerDatos(): array
     {
         $rows = Venta::select(DB::raw('DATE(fecha) as label'), DB::raw('SUM(monto) as value'))
+            ->where('fecha', '>=', now()->subDays(30)->toDateString())
             ->groupBy('label')
             ->orderBy('label')
             ->get();

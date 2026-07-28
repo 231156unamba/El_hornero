@@ -8,10 +8,19 @@ const props = defineProps({
 });
 
 const emit = defineEmits(['edit', 'delete']);
+
+const tipoLabel = {
+  admin:   'Administrador',
+  cocina:  'Cocinero',
+  pedido:  'Mesero',
+  caja:    'Cajero',
+};
+
+const getTipoLabel = (tipo) => tipoLabel[(tipo || '').toLowerCase()] ?? tipo;
 </script>
 
 <template>
-  <table class="custom-table" style="margin-top: 20px;">
+  <table class="custom-table">
     <thead>
       <tr>
         <th>ID</th>
@@ -24,16 +33,16 @@ const emit = defineEmits(['edit', 'delete']);
     </thead>
     <tbody>
       <tr v-for="c in usuarios" :key="c.id">
-        <td style="color: #000">{{ c.id }}</td>
-        <td class="fw-bold" style="color: #000">{{ c.usuario }}</td>
-        <td style="color: #000">{{ c.nombres }}</td>
-        <td style="color: #000">{{ c.apellidos }}</td>
-        <td><span :class="['role-badge', c.tipo]">{{ c.tipo }}</span></td>
+        <td class="table-cell-black">{{ c.id }}</td>
+        <td class="table-cell-bold">{{ c.usuario }}</td>
+        <td class="table-cell-black">{{ c.nombres }}</td>
+        <td class="table-cell-black">{{ c.apellidos }}</td>
+        <td><span :class="['role-badge', c.tipo]">{{ getTipoLabel(c.tipo) }}</span></td>
         <td>
-          <div class="menu-actions" style="justify-content: center;">
+          <div class="menu-actions">
             <button class="btn btn-success" @click="emit('edit', c)">Editar</button>
             <button class="btn btn-danger" v-if="c.id !== 1" @click="emit('delete', c)">Eliminar</button>
-            <button class="btn btn-danger" v-else disabled style="opacity: 0.5; cursor: not-allowed;">Eliminar</button>
+            <button class="btn btn-danger btn-disabled" v-else disabled>Eliminar</button>
           </div>
         </td>
       </tr>

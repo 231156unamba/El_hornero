@@ -1,7 +1,5 @@
-
 CREATE DATABASE IF NOT EXISTS el_hornero;
 USE el_hornero;
-
 
 CREATE TABLE usuarios (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -18,9 +16,10 @@ CREATE TABLE menu (
     precio DECIMAL(8,2) NOT NULL,
     descripcion TEXT,
     imagen VARCHAR(255),
-    categoria ENUM('bebidas','comida','promociones') NOT NULL DEFAULT 'comida',
+    categoria ENUM('comida','bebida','promocion') NOT NULL DEFAULT 'comida',
     discount_percentage DECIMAL(5,2) NULL DEFAULT NULL,
-    discount_expires_at DATETIME NULL DEFAULT NULL
+    discount_expires_at DATETIME NULL DEFAULT NULL,
+    estado ENUM('habilitado', 'deshabilitado') NOT NULL DEFAULT 'habilitado'
 );
 
 CREATE TABLE caja (
@@ -42,13 +41,13 @@ CREATE TABLE venta (
 CREATE TABLE pedido (
     id INT AUTO_INCREMENT PRIMARY KEY,
     mesa INT NOT NULL,
-    usuario_id INT,
+    mesero_id INT NULL,
     detalle TEXT,
     tipo_servicio ENUM('local','llevar') DEFAULT 'local',
     estado ENUM('pedido','cocinando','preparado','entregado','pagado') DEFAULT 'pedido',
-    venta_id INT,
+    venta_id INT NULL,
     fecha DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (usuario_id) REFERENCES usuarios(id),
+    FOREIGN KEY (mesero_id) REFERENCES usuarios(id) ON DELETE SET NULL ON UPDATE CASCADE,
     FOREIGN KEY (venta_id) REFERENCES venta(id)
 );
 
@@ -98,16 +97,16 @@ INSERT INTO usuarios (usuario, nombres, apellidos, clave, tipo) VALUES
 ('pedido1', 'Maria', 'Gomez', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'pedido'),
 ('caja1', 'Carlos', 'Lopez', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'caja');
 
--- Insertar datos iniciales de menu
+-- Insertar datos iniciales de menu (por defecto tomaran 'habilitado')
 INSERT INTO menu (nombre, precio, descripcion, imagen, categoria, discount_percentage, discount_expires_at) VALUES
 ('Pollo a la Brasa Entero', 45.00, 'Pollo a la brasa entero con papas fritas y ensalada', null, 'comida', 15.00, '2026-07-15 23:59:59'),
 ('Pollo a la Brasa Medio', 25.00, 'Medio pollo a la brasa con papas fritas y ensalada', null, 'comida', null, null),
 ('Pollo a la Brasa 1/4', 15.00, 'Un cuarto de pollo a la brasa con papas fritas', null, 'comida', null, null),
 ('Chifa Saltado de Pollo', 30.00, 'Saltado de pollo con papas fritas y arroz', null, 'comida', 10.00, '2026-07-20 23:59:59'),
 ('Chifa Aeropuerto', 40.00, 'Aeropuerto de pollo y res', null, 'comida', null, null),
-('Chicha Morada', 5.00, 'Chicha morada casera 1 litro', null, 'bebidas', 20.00, '2026-07-12 23:59:59'),
-('Inca Kola', 4.00, 'Botella de Inca Kola 500ml', null, 'bebidas', null, null),
-('Coca Cola', 4.00, 'Botella de Coca Cola 500ml', null, 'bebidas', null, null),
-('Agua Mineral', 2.50, 'Botella de agua mineral 600ml', null, 'bebidas', null, null),
-('Cerveza Pilsen', 8.00, 'Botella de Pilsen 330ml', null, 'bebidas', null, null),
-('Combo Familiar', 55.00, '1 Pollo Entero + 1 Chicha Morada 2L + Papas Extra', null, 'promociones', 25.00, '2026-07-25 23:59:59');
+('Chicha Morada', 5.00, 'Chicha morada casera 1 litro', null, 'bebida', 20.00, '2026-07-12 23:59:59'),
+('Inca Kola', 4.00, 'Botella de Inca Kola 500ml', null, 'bebida', null, null),
+('Coca Cola', 4.00, 'Botella de Coca Cola 500ml', null, 'bebida', null, null),
+('Agua Mineral', 2.50, 'Botella de agua mineral 600ml', null, 'bebida', null, null),
+('Cerveza Pilsen', 8.00, 'Botella de Pilsen 330ml', null, 'bebida', null, null),
+('Combo Familiar', 55.00, '1 Pollo Entero + 1 Chicha Morada 2L + Papas Extra', null, 'promocion', 25.00, '2026-07-25 23:59:59');

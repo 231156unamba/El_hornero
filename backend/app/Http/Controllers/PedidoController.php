@@ -10,21 +10,31 @@ class PedidoController extends Controller
 { 
     public function index()
     {
-        $pedidos = Pedido::whereDate('fecha', now()->toDateString())
-            ->orderByRaw("CASE WHEN estado = 'preparado' THEN 0 ELSE 1 END")
-            ->orderBy('fecha', 'desc')
+        // Mostrar pedidos que:
+        // 1. No están pagados (nunca desaparecen hasta ser pagados), independientemente del día.
+        // 2. O son del día actual (para mostrar los pagados del día).
+        $hoy = now()->toDateString();
+
+        $pedidos = Pedido::where(function ($q) use ($hoy) {
+                $q->whereNotIn('estado', ['pagado', 'cancelado'])   // pendientes de pago — siempre visibles
+                  ->orWhereDate('fecha', $hoy);                     // o cualquier estado del día de hoy
+            })
+            ->orderByRaw("CASE WHEN estado = 'preparado' THEN 0 WHEN estado = 'cocinando' THEN 1 WHEN estado = 'pedido' THEN 2 ELSE 3 END")
+            ->orderBy('fecha', 'asc')
             ->get()
-            ->map(function ($pedido) {
+            ->map(function ($pedido) use ($hoy) {
                 return [
-                    'id' => (int) $pedido->id,
-                    'mesa' => (int) $pedido->mesa,
+                    'id'            => (int)    $pedido->id,
+                    'mesa'          => (int)    $pedido->mesa,
                     'tipo_servicio' => (string) ($pedido->tipo_servicio ?? 'local'),
-                    'detalle' => (string) $pedido->detalle,
-                    'estado' => (string) $pedido->estado,
-                    'fecha' => (string) $pedido->fecha,
-                    'costo' => $pedido->calcularTotalCosto(),
+                    'detalle'       => (string) $pedido->detalle,
+                    'estado'        => (string) $pedido->estado,
+                    'fecha'         => (string) $pedido->fecha,
+                    'costo'         => $pedido->calcularTotalCosto(),
+                    'es_anterior'   => $pedido->fecha && date('Y-m-d', strtotime($pedido->fecha)) < $hoy,
                 ];
             });
+
         return response()->json($pedidos);
     }
 

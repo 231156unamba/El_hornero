@@ -47,6 +47,10 @@ const login = async () => {
 
 <template>
   <div class="login-page">
+    <!-- Patrón de ondas de fuego, generado en CSS (no depende de ninguna imagen) -->
+    <div class="flames" aria-hidden="true"></div>
+    <div class="embers" aria-hidden="true"></div>
+
     <div class="overlay">
       <header class="header">
           <img src="/logo.png" alt="Polleria El Hornero" class="logo-img">

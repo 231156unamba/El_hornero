@@ -14,6 +14,7 @@ class PagosPorMetodoGrafica extends Grafica
     {
         $rows = Venta::query()
             ->select('metodo_pago as label', DB::raw('SUM(monto) as value'))
+            ->where('fecha', '>=', now()->startOfMonth()->toDateString())
             ->whereNotNull('metodo_pago')
             ->where('metodo_pago', '<>', '')
             ->groupBy('metodo_pago')

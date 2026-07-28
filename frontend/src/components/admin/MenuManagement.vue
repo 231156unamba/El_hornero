@@ -1,6 +1,7 @@
 <script setup>
 import { ref } from 'vue';
 import api from '../../api';
+import './MenuManagement.css';
 
 const props = defineProps({
   menu: {
@@ -10,7 +11,28 @@ const props = defineProps({
   }
 });
 
-const emit = defineEmits(['edit', 'delete', 'discount']);
+const emit = defineEmits(['edit', 'delete', 'discount', 'toggle']);
+
+const togglingId = ref(null);
+
+const handleToggle = (item) => {
+  if (togglingId.value !== null) return;
+  togglingId.value = item.id;
+  emit('toggle', item);
+  setTimeout(() => {
+    togglingId.value = null;
+  }, 1500);
+};
+
+// Definición de las columnas — valor coincide exactamente con el ENUM de la BD
+const columnas = [
+  { key: 'comida',    label: 'Comidas',     icon: '🍽️' },
+  { key: 'bebida',    label: 'Bebidas',     icon: '🥤' },
+  { key: 'promocion', label: 'Promociones', icon: '🎉' },
+];
+
+const itemsByCategoria = (cat) =>
+  props.menu.filter(i => (i.categoria || '').toLowerCase() === cat);
 
 const menuImageUrl = (item) => {
   if (!item) return '';
@@ -23,93 +45,81 @@ const menuImageUrl = (item) => {
   return `${apiOrigin}/images/menu/${img}`;
 };
 
-const imgFallback = (e) => {
-  e.target.src = '/logo.png';
-};
+const imgFallback = (e) => { e.target.src = '/logo.png'; };
 
-const editItem = (item) => emit('edit', item);
-const deleteItem = (item) => emit('delete', item);
-const openDiscountModal = (item) => emit('discount', item);
+const precioFinal = (item) =>
+  item.discount_percentage
+    ? (item.precio * (1 - item.discount_percentage / 100)).toFixed(2)
+    : item.precio;
 </script>
 
 <template>
-  <div>
-    <h3 style="margin: 25px 0 15px; color: #f1af32; font-size: 1.3rem; border-bottom: 1px solid #eee; padding-bottom: 10px;">Comidas</h3>
-    <div class="menu-list">
-      <div class="menu-item" v-for="item in menu.filter(i => (i.categoria || '').toLowerCase() === 'comida')" :key="item.id">
-        <img :src="menuImageUrl(item)" alt="" @error="imgFallback">
-        <div class="menu-content">
-          <div class="menu-header">
-            <div class="nombre">{{ item.nombre }}</div>
-            <div class="precio">
-              <span v-if="item.discount_percentage" style="text-decoration: line-through; color: #777; font-size: 0.8em; margin-right: 5px;">
-                S/. {{ item.precio }}
-              </span>
-              S/. {{ item.discount_percentage ? (item.precio * (1 - item.discount_percentage / 100)).toFixed(2) : item.precio }}
-              <span v-if="item.discount_percentage" style="background: #ef5350; color: white; padding: 2px 6px; border-radius: 4px; font-size: 0.75em; margin-left: 5px;">
-                -{{ item.discount_percentage }}%
-              </span>
-            </div>
-          </div>
-          <div class="descripcion">{{ item.descripcion }}</div>
-          <div class="menu-actions">
-            <button class="btn btn-success" @click="editItem(item)">Editar</button>
-            <button class="btn" style="background: #ffc107; color: #333;" @click="openDiscountModal(item)">Oferta</button>
-            <button class="btn btn-danger" @click="deleteItem(item)">Eliminar</button>
-          </div>
-        </div>
+  <div class="mm-triptych">
+    <div
+      v-for="col in columnas"
+      :key="col.key"
+      class="mm-column"
+    >
+      <!-- Cabecera de la columna -->
+      <div :class="['mm-column-header', col.key]">
+        <span class="mm-column-icon">{{ col.icon }}</span>
+        <h3 class="mm-column-title">{{ col.label }}</h3>
+        <span class="mm-column-count">{{ itemsByCategoria(col.key).length }}</span>
       </div>
-    </div>
 
-    <h3 style="margin: 40px 0 15px; color: #f1af32; font-size: 1.3rem; border-bottom: 1px solid #eee; padding-bottom: 10px;">Bebidas</h3>
-    <div class="menu-list">
-      <div class="menu-item" v-for="item in menu.filter(i => (i.categoria || '').toLowerCase() === 'bebidas')" :key="item.id">
-        <img :src="menuImageUrl(item)" alt="" @error="imgFallback">
-        <div class="menu-content">
-          <div class="menu-header">
-            <div class="nombre">{{ item.nombre }}</div>
-            <div class="precio">
-              <span v-if="item.discount_percentage" style="text-decoration: line-through; color: #777; font-size: 0.8em; margin-right: 5px;">
-                S/. {{ item.precio }}
-              </span>
-              S/. {{ item.discount_percentage ? (item.precio * (1 - item.discount_percentage / 100)).toFixed(2) : item.precio }}
-              <span v-if="item.discount_percentage" style="background: #ef5350; color: white; padding: 2px 6px; border-radius: 4px; font-size: 0.75em; margin-left: 5px;">
-                -{{ item.discount_percentage }}%
-              </span>
-            </div>
-          </div>
-          <div class="descripcion">{{ item.descripcion }}</div>
-          <div class="menu-actions">
-            <button class="btn btn-success" @click="editItem(item)">Editar</button>
-            <button class="btn" style="background: #ffc107; color: #333;" @click="openDiscountModal(item)">Oferta</button>
-            <button class="btn btn-danger" @click="deleteItem(item)">Eliminar</button>
-          </div>
+      <!-- Lista de ítems -->
+      <div class="mm-items">
+        <!-- Estado vacío -->
+        <div v-if="itemsByCategoria(col.key).length === 0" class="mm-empty">
+          <span class="mm-empty-icon">{{ col.icon }}</span>
+          <span>Sin artículos</span>
         </div>
-      </div>
-    </div>
 
-    <h3 style="margin: 40px 0 15px; color: #f1af32; font-size: 1.3rem; border-bottom: 1px solid #eee; padding-bottom: 10px;">Promociones</h3>
-    <div class="menu-list">
-      <div class="menu-item" v-for="item in menu.filter(i => (i.categoria || '').toLowerCase() === 'promociones')" :key="item.id">
-        <img :src="menuImageUrl(item)" alt="" @error="imgFallback">
-        <div class="menu-content">
-          <div class="menu-header">
-            <div class="nombre">{{ item.nombre }}</div>
-            <div class="precio">
-              <span v-if="item.discount_percentage" style="text-decoration: line-through; color: #777; font-size: 0.8em; margin-right: 5px;">
-                S/. {{ item.precio }}
-              </span>
-              S/. {{ item.discount_percentage ? (item.precio * (1 - item.discount_percentage / 100)).toFixed(2) : item.precio }}
-              <span v-if="item.discount_percentage" style="background: #ef5350; color: white; padding: 2px 6px; border-radius: 4px; font-size: 0.75em; margin-left: 5px;">
-                -{{ item.discount_percentage }}%
-              </span>
+        <!-- Ítem -->
+        <div
+          v-for="item in itemsByCategoria(col.key)"
+          :key="item.id"
+          :class="['mm-item', { 'mm-item-disabled': !item.activo }]"
+        >
+          <img
+            :src="menuImageUrl(item)"
+            :alt="item.nombre"
+            :class="['mm-item-img', { 'mm-item-img-disabled': !item.activo }]"
+            @error="imgFallback"
+          />
+
+          <div class="mm-item-info">
+            <div :class="['mm-item-name', { 'mm-item-name-disabled': !item.activo }]">
+              {{ item.nombre }}
+              <span v-if="!item.activo" class="mm-item-disabled-tag">inactivo</span>
             </div>
-          </div>
-          <div class="descripcion">{{ item.descripcion }}</div>
-          <div class="menu-actions">
-            <button class="btn btn-success" @click="editItem(item)">Editar</button>
-            <button class="btn" style="background: #ffc107; color: #333;" @click="openDiscountModal(item)">Oferta</button>
-            <button class="btn btn-danger" @click="deleteItem(item)">Eliminar</button>
+            <div class="mm-item-desc">{{ item.descripcion }}</div>
+
+            <div class="mm-item-footer">
+              <div class="mm-item-price">
+                <span v-if="item.discount_percentage" class="mm-item-price-original">
+                  S/. {{ item.precio }}
+                </span>
+                S/. {{ precioFinal(item) }}
+                <span v-if="item.discount_percentage" class="mm-discount-badge">
+                  -{{ item.discount_percentage }}%
+                </span>
+              </div>
+
+              <div class="mm-item-actions">
+                <button class="mm-btn mm-btn-edit"   @click="emit('edit',     item)">Editar</button>
+                <button class="mm-btn mm-btn-offer"  @click="emit('discount', item)">Oferta</button>
+                <button
+                  :class="['mm-btn', item.activo ? 'mm-btn-disable' : 'mm-btn-enable', { 'mm-btn-loading': togglingId === item.id }]"
+                  @click="handleToggle(item)"
+                  :disabled="togglingId === item.id"
+                >
+                  <span v-if="togglingId === item.id" class="mm-btn-spinner"></span>
+                  <span>{{ togglingId === item.id ? 'Procesando...' : (item.activo ? 'Inhabilitar' : 'Habilitar') }}</span>
+                </button>
+                <button class="mm-btn mm-btn-delete" @click="emit('delete',   item)">Eliminar</button>
+              </div>
+            </div>
           </div>
         </div>
       </div>

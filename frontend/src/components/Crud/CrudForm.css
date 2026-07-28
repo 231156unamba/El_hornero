@@ -1,0 +1,172 @@
+/* CRUD Modal Base Styles */
+.crud-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  backdrop-filter: blur(3px);
+  padding: 16px;
+  box-sizing: border-box;
+}
+
+.crud-modal {
+  background: #fff;
+  border-radius: 18px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+  opacity: 0;
+  transform: scale(0.92) translateY(-16px);
+  transition: all 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+  max-height: 90vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  /* Garantiza que el modal no supere el viewport */
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.crud-modal-open {
+  opacity: 1;
+  transform: scale(1) translateY(0);
+}
+
+.crud-modal-small {
+  width: 420px;
+}
+
+.crud-modal-medium {
+  width: 540px;
+}
+
+.crud-modal-large {
+  width: 660px;
+}
+
+/* ── Header ── */
+.crud-modal-header {
+  padding: 22px 28px 18px;
+  border-bottom: 1px solid #f0f0f0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #fafafa;
+  border-radius: 18px 18px 0 0;
+  flex-shrink: 0;
+}
+
+.crud-modal-title {
+  margin: 0;
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: #111827;
+  letter-spacing: -0.01em;
+}
+
+.crud-modal-close {
+  background: none;
+  border: none;
+  font-size: 24px;
+  line-height: 1;
+  cursor: pointer;
+  color: #9ca3af;
+  width: 34px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  transition: background 0.18s, color 0.18s;
+  flex-shrink: 0;
+}
+
+.crud-modal-close:hover {
+  background: #f3f4f6;
+  color: #374151;
+}
+
+/* ── Body ── */
+.crud-modal-body {
+  padding: 28px;
+  overflow-y: auto;
+  flex: 1;
+  box-sizing: border-box;
+  /* Evita que el contenido desborde el ancho del modal */
+  min-width: 0;
+}
+
+/* ── Footer ── */
+.crud-modal-footer {
+  padding: 18px 28px;
+  border-top: 1px solid #f0f0f0;
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  background: #fafafa;
+  border-radius: 0 0 18px 18px;
+  flex-shrink: 0;
+}
+
+/* ── Buttons ── */
+.crud-btn {
+  padding: 10px 22px;
+  border: none;
+  border-radius: 10px;
+  font-weight: 600;
+  font-size: 0.92rem;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.15s, box-shadow 0.2s;
+  letter-spacing: 0.01em;
+}
+
+.crud-btn-primary {
+  background: #ef6c00;
+  color: #fff;
+}
+
+.crud-btn-primary:hover {
+  background: #e65100;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(239, 108, 0, 0.28);
+}
+
+.crud-btn-secondary {
+  background: #f3f4f6;
+  color: #374151;
+  border: 1px solid #e5e7eb;
+}
+
+.crud-btn-secondary:hover {
+  background: #e5e7eb;
+  color: #111827;
+}
+
+/* ── Responsive ── */
+@media (max-width: 700px) {
+  .crud-modal-overlay {
+    align-items: flex-end;
+    padding: 0;
+  }
+
+  .crud-modal-small,
+  .crud-modal-medium,
+  .crud-modal-large {
+    width: 100%;
+    border-radius: 18px 18px 0 0;
+    max-height: 92vh;
+  }
+
+  .crud-modal-header,
+  .crud-modal-footer {
+    padding: 16px 20px;
+  }
+
+  .crud-modal-body {
+    padding: 20px;
+  }
+}

@@ -1,0 +1,107 @@
+/* User Form Styles — Modern */
+.user-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  /* Asegura que el grid nunca desborde el contenedor del modal */
+  min-width: 0;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.user-form-group {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.user-form-group-full {
+  grid-column: 1 / -1;
+}
+
+/* ── Label ── */
+.user-form-label {
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 6px;
+  font-size: 0.85rem;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+/* ── Inputs & Selects ── */
+.user-form-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 11px 14px;
+  border: 1.5px solid #e5e7eb;
+  border-radius: 10px;
+  font-size: 0.95rem;
+  font-family: inherit;
+  color: #111827;
+  background: #fff;
+  transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+.user-form-input::placeholder {
+  color: #9ca3af;
+  font-weight: 400;
+}
+
+.user-form-input:hover {
+  border-color: #d1d5db;
+}
+
+.user-form-input:focus {
+  outline: none;
+  border-color: #ef6c00;
+  background: #fffaf7;
+  box-shadow: 0 0 0 3px rgba(239, 108, 0, 0.12);
+}
+
+/* Select arrow */
+select.user-form-input {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 38px;
+  cursor: pointer;
+}
+
+/* ── Error state ── */
+.user-form-input-error {
+  border-color: #ef4444;
+  background: #fff5f5;
+}
+
+.user-form-input-error:focus {
+  border-color: #ef4444;
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.12);
+  background: #fff5f5;
+}
+
+.user-form-error {
+  color: #ef4444;
+  font-size: 0.82rem;
+  margin-top: 5px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* ── Hint ── */
+.user-form-hint {
+  color: #9ca3af;
+  font-size: 0.82rem;
+  margin-top: 5px;
+}
+
+/* ── Responsive ── */
+@media (max-width: 580px) {
+  .user-form-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+}
