@@ -14,46 +14,57 @@ class AuthController extends Controller
             'clave' => 'required|string',
         ]);
 
-        // Note: Using plain text comparison as per original legacy code.
-        // It is highly recommended to migrate to bcrypt hashing.
-        $user = Usuario::where('usuario', $request->usuario)
-                       ->where('clave', $request->clave)
-                       ->first();
+        $user = Usuario::where('usuario', $request->usuario)->first();
 
-        if ($user) {
-            // Store in session if needed, but for API usually we return token or just user info.
-            // Original code used session_start() and returned JSON.
-            // Since we are migrating to an API for frontend, we'll return the JSON response.
-            
-            // If the frontend expects a session, we might need to use Laravel's session driver
-            // or Sanctum for token authentication.
-            // For now, I will replicate the JSON response.
-            
-            $tipoRaw = strtolower((string) $user->tipo);
-            if (in_array($tipoRaw, ['admin'])) {
-                $tipoFront = 'admin';
-            } elseif (in_array($tipoRaw, ['caja', 'encargado', 'encargado_caja'])) {
-                $tipoFront = 'caja';
-            } elseif (in_array($tipoRaw, ['cocina', 'kitchen'])) {
-                $tipoFront = 'cocina';
-            } elseif (in_array($tipoRaw, ['pedido', 'mozo'])) {
-                $tipoFront = 'pedido';
-            } else {
-                $tipoFront = 'menu';
-            }
-
+        if (!$user) {
             return response()->json([
-                'success' => true,
-                'tipo' => $tipoFront,
-                'id' => (int) $user->id,
-                'usuario' => (string) $user->usuario,
-                'nombres' => (string) ($user->nombres ?? ''),
-                'apellidos' => (string) ($user->apellidos ?? ''),
-            ]);
+                'success' => false,
+                'message' => 'Usuario no encontrado.',
+            ], 401);
         }
 
+        if (!\Illuminate\Support\Facades\Hash::check($request->clave, $user->clave)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Contraseña incorrecta.',
+            ], 401);
+        }
+
+        $tipoRaw = strtolower((string) $user->tipo);
+        if (in_array($tipoRaw, ['admin'])) {
+            $tipoFront = 'admin';
+        } elseif (in_array($tipoRaw, ['caja', 'encargado', 'encargado_caja'])) {
+            $tipoFront = 'caja';
+        } elseif (in_array($tipoRaw, ['cocina', 'kitchen'])) {
+            $tipoFront = 'cocina';
+        } elseif (in_array($tipoRaw, ['pedido', 'mozo'])) {
+            $tipoFront = 'pedido';
+        } else {
+            $tipoFront = 'menu';
+        }
+
+        $user->tokens()->delete();
+
+        $token = $user->createToken('auth')->plainTextToken;
+
         return response()->json([
-            'success' => false,
+            'success' => true,
+            'token' => $token,
+            'tipo' => $tipoFront,
+            'id' => (int) $user->id,
+            'usuario' => (string) $user->usuario,
+            'nombres' => (string) ($user->nombres ?? ''),
+            'apellidos' => (string) ($user->apellidos ?? ''),
+        ]);
+    }
+
+    public function logout(Request $request)
+    {
+        // Revoke the current user's token
+        $request->user()->currentAccessToken()->delete();
+        
+        return response()->json([
+            'success' => true,
         ]);
     }
 }

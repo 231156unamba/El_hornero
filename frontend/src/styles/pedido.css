@@ -124,8 +124,9 @@ select:focus, input:focus {
 .product-selector-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 16px;
-  align-items: start;
+  gap: 20px;
+  align-items: stretch;
+  margin-bottom: 28px;
 }
 
 .product-box {
@@ -152,7 +153,7 @@ select:focus, input:focus {
 .add-item-grid {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 14px;
   flex: 1;
 }
 .item-select { width: 100%; min-width: 0; }
@@ -195,7 +196,7 @@ select:focus, input:focus {
 /* ── Ajuste de precio ── */
 .ajuste-panel {
   background: #fffbeb; border: 1.5px solid #fde68a;
-  border-radius: 12px; padding: 14px 18px; margin-bottom: 20px;
+  border-radius: 12px; padding: 16px 20px; margin-bottom: 24px;
 }
 .ajuste-panel-header {
   display: flex; align-items: center; justify-content: space-between;
@@ -343,6 +344,18 @@ select:focus, input:focus {
 }
 .order-costo { font-weight: 700; color: #b45309; font-size: 0.9rem; }
 
+.order-footer-actions {
+  display: flex; align-items: center; gap: 8px;
+}
+
+.btn-entregado {
+  background: #dcfce7; color: #14532d;
+  border: 1.5px solid #86efac; padding: 6px 14px;
+  border-radius: 8px; cursor: pointer; font-weight: 700;
+  font-size: 0.85rem; transition: background 0.18s, color 0.18s;
+}
+.btn-entregado:hover { background: #22c55e; color: white; }
+
 .btn-cancel {
   background: #fef2f2; color: #dc2626;
   border: 1.5px solid #fecaca; padding: 5px 12px;
@@ -373,13 +386,13 @@ select:focus, input:focus {
 
 /* ── Responsive ── */
 @media (max-width: 1100px) {
-  .product-selector-grid { grid-template-columns: 1fr 1fr; }
+  .product-selector-grid { grid-template-columns: 1fr 1fr; gap: 20px; }
 }
 
 @media (max-width: 900px) {
   .main-content { grid-template-columns: 1fr; }
-  .ajuste-grid  { grid-template-columns: 1fr; }
-  .product-selector-grid { grid-template-columns: 1fr; }
+  .ajuste-grid  { grid-template-columns: 1fr; gap: 14px; }
+  .product-selector-grid { grid-template-columns: 1fr; gap: 20px; }
 }
 
 .empty-orders { text-align: center; padding: 32px; color: var(--muted); font-size: 0.9rem; }
