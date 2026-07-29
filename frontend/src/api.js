@@ -11,10 +11,10 @@ const api = axios.create({
 // Por ahora el login devuelve un objeto simple, pero es buena práctica tener esto.
 api.interceptors.request.use(config => {
   const token = localStorage.getItem('token');
-  // Nota: En la implementación actual del backend no estamos usando tokens JWT reales,
-  // pero el frontend espera 'token' en localStorage para validar sesión en las vistas.
+  // Nota: En la implementación actual enviamos el token Sanctum
+  // para validar sesión en las vistas privadas protegidas por auth:sanctum
   if (token) {
-    // config.headers.Authorization = `Bearer ${token}`;
+    config.headers.Authorization = `Bearer ${token}`;
   }
   // Si es FormData, eliminar Content-Type para que el navegador establezca multipart/form-data correctamente
   if (config.data instanceof FormData) {

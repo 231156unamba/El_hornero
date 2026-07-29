@@ -574,7 +574,7 @@ onMounted(load);
       <div class="dp-panel">
         <div class="dp-panel-header">
           <span class="dp-panel-icon">🏅</span>
-          <h3 class="dp-panel-title">Ranking de meseros</h3>
+          <h3 class="dp-panel-title">Ranking de meseros</h3><h6 class="dp-panel-body">(del mes)</h6>
           <span class="dp-panel-count">{{ meseros.length }}</span>
         </div>
         <div class="dp-panel-body" style="max-height: none;">

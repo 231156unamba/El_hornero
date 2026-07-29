@@ -4,10 +4,11 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Laravel\Sanctum\HasApiTokens;
 
 class Usuario extends Model
 {
-    use HasFactory;
+    use HasFactory, HasApiTokens;
 
     protected $table = 'usuarios';
     public $timestamps = false; // Assuming no created_at/updated_at columns based on typical raw PHP projects

@@ -20,11 +20,27 @@ const login = async () => {
     });
 
     if (response.data.success) {
+      // Generar ID único para esta sesión
+      const sessionId = Date.now() + Math.random();
+      localStorage.setItem('sessionId', sessionId.toString());
+
       // Guardar sesión
-      localStorage.setItem('token', 'dummy-token'); 
+      localStorage.setItem('token', response.data.token); 
       localStorage.setItem('usuario', response.data.usuario);
       localStorage.setItem('rol', response.data.tipo);
       localStorage.setItem('userId', response.data.id);
+      localStorage.setItem('nombres', response.data.nombres || '');
+      localStorage.setItem('apellidos', response.data.apellidos || '');
+      localStorage.setItem('auth_sync', Date.now().toString());
+
+      // Notificar a otras pestañas que hubo un nuevo login
+      const sessionChannel = new BroadcastChannel('session-sync');
+      sessionChannel.postMessage({ 
+        type: 'new-login', 
+        userId: response.data.id,
+        sessionId: sessionId
+      });
+      sessionChannel.close();
 
       // Redirigir según rol
       const rol = response.data.tipo;
@@ -34,10 +50,14 @@ const login = async () => {
       else if (rol === 'pedido') router.push('/pedidos'); 
       else router.push('/menu'); 
     } else {
-      error.value = 'Credenciales incorrectas';
+      error.value = response.data.message || 'Error al iniciar sesión';
     }
   } catch (e) {
-    error.value = 'Error de conexión con el servidor';
+    if (e.response?.data?.message) {
+      error.value = e.response.data.message;
+    } else {
+      error.value = 'Error de conexión con el servidor';
+    }
     console.error(e);
   } finally {
     loading.value = false;
