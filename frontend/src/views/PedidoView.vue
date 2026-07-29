@@ -2,11 +2,14 @@
 import { ref, onMounted, onUnmounted, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import api from '../api';
+import SessionGuard from '../components/common/SessionGuard.vue';
+import UserMenu from '../components/common/UserMenu.vue';
 
 const router = useRouter();
 const pedidos           = ref([]);
 const pedidosAnteriores = ref([]);
 const avisos            = ref([]);
+const mesasOcupadas     = ref([]);
 const mesas             = Array.from({ length: 10 }, (_, i) => i + 1);
 const mesaSeleccionada  = ref('');
 const menu              = ref([]);
@@ -20,19 +23,12 @@ const carrito                = ref([]);
 const ajustePrecio           = ref(null);
 const ajusteDescripcion      = ref('');
 const tipoServicio           = ref('local');
-const usuarioNombre          = ref('');
 const apiOrigin = new URL(api.defaults.baseURL).origin;
 
 // ── Filtros de categoría (valores exactos de la BD) ──────────
 const platosMenu     = computed(() => menu.value.filter(p => (p.categoria || '').toLowerCase() === 'comida'));
 const bebidasMenu    = computed(() => menu.value.filter(p => (p.categoria || '').toLowerCase() === 'bebida'));
 const promocionesMenu= computed(() => menu.value.filter(p => (p.categoria || '').toLowerCase() === 'promocion'));
-
-const mesasOcupadas = computed(() =>
-  pedidos.value
-    .filter(p => p.estado !== 'pagado' && p.estado !== 'cancelado')
-    .map(p => parseInt(p.mesa))
-);
 
 // ── Sonido de aviso ──────────────────────────────────────────
 const reproducirSonido = () => {
@@ -60,11 +56,14 @@ const menuChannel = new BroadcastChannel('menu-updates');
 
 onMounted(async () => {
   if (localStorage.getItem('rol') !== 'pedido') { router.push('/login'); return; }
-  usuarioNombre.value = localStorage.getItem('usuario') || 'Mesero';
   await fetchMenu();
   await fetchPedidos();
+  await fetchMesasOcupadas();
   pedidosAnteriores.value = [...pedidos.value];
-  setInterval(fetchPedidos, 5000);
+  setInterval(() => {
+    fetchPedidos();
+    fetchMesasOcupadas();
+  }, 5000);
   menuChannel.addEventListener('message', (e) => {
     if (e.data.type === 'menu-changed') fetchMenu();
   });
@@ -92,6 +91,13 @@ const fetchPedidos = async () => {
     }
     pedidos.value = nuevos;
     pedidosAnteriores.value = [...nuevos];
+  } catch (e) { console.error(e); }
+};
+
+const fetchMesasOcupadas = async () => {
+  try {
+    const r = await api.get('/pedidos/mesas-ocupadas');
+    mesasOcupadas.value = r.data;
   } catch (e) { console.error(e); }
 };
 
@@ -152,9 +158,8 @@ const crearPedido = async () => {
 
   try {
     const r = await api.post('/pedidos', {
-      mesa:        mesaSeleccionada.value,
+      mesa:          mesaSeleccionada.value,
       detalle,
-      usuario_id:  Number(localStorage.getItem('userId')) || undefined,
       tipo_servicio: tipoServicio.value,
     });
     if (r.data.success) {
@@ -163,6 +168,7 @@ const crearPedido = async () => {
       ajustePrecio.value         = null;
       ajusteDescripcion.value    = '';
       fetchPedidos();
+      fetchMesasOcupadas();
       alert('Pedido enviado a cocina correctamente');
     } else { alert('Error al crear pedido'); }
   } catch (e) { console.error(e); alert('Error de conexión'); }
@@ -177,7 +183,24 @@ const cancelarPedido = async (p) => {
     const r = await api.delete(`/pedidos/${p.id}`);
     if (r.data?.success) { fetchPedidos(); alert('Pedido cancelado.'); }
     else alert(r.data?.error || 'No se pudo cancelar el pedido.');
-  } catch (e) { console.error(e); alert('Error al cancelar el pedido.'); }
+  } catch (e) {
+    console.error(e);
+    alert(e.response?.data?.error || 'Error al cancelar el pedido.');
+  }
+};
+
+const marcarEntregado = async (p) => {
+  try {
+    await api.post('/pedidos/actualizar', { id: p.id, estado: 'entregado' });
+    const idx = pedidos.value.findIndex(x => x.id === p.id);
+    if (idx !== -1) {
+      pedidos.value[idx] = { ...pedidos.value[idx], estado: 'entregado' };
+      pedidosAnteriores.value = [...pedidos.value];
+    }
+  } catch (e) {
+    console.error(e);
+    alert(e.response?.data?.error || 'No se pudo marcar el pedido como entregado.');
+  }
 };
 
 // ── Clase de color del order-card ────────────────────────────
@@ -214,8 +237,6 @@ const formatHora = (f) => {
   const iso = f.includes(' ') ? f.replace(' ', 'T') + 'Z' : f;
   return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 };
-
-const logout = () => { localStorage.clear(); router.push('/login'); };
 </script>
 
 <template>
@@ -225,11 +246,7 @@ const logout = () => { localStorage.clear(); router.push('/login'); };
     <header class="navbar">
       <div class="brand"><h1>EL HORNERO</h1></div>
       <div class="user-control">
-        <div class="user-profile">
-          <div class="user-avatar">M</div>
-          <span>{{ usuarioNombre }}</span>
-        </div>
-        <button class="logout-btn" @click="logout">Cerrar Sesión</button>
+        <UserMenu />
       </div>
     </header>
 
@@ -433,6 +450,11 @@ const logout = () => { localStorage.clear(); router.push('/login'); };
             <div class="order-footer">
               <span class="order-costo">S/ {{ Number(p.costo || 0).toFixed(2) }}</span>
               <div class="order-footer-actions">
+                <button
+                  v-if="String(p.estado).toLowerCase() === 'preparado'"
+                  class="btn-entregado"
+                  @click="marcarEntregado(p)"
+                >✔ Entregado</button>
                 <button class="btn-cancel" @click="cancelarPedido(p)" :disabled="String(p.estado).toLowerCase() !== 'pedido'">
                   Cancelar
                 </button>
@@ -455,6 +477,8 @@ const logout = () => { localStorage.clear(); router.push('/login'); };
       </transition-group>
     </div>
   </div>
+
+  <SessionGuard />
 </template>
 
 <style src="../styles/pedido.css" scoped></style>

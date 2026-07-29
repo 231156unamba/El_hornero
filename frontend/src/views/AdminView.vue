@@ -17,6 +17,8 @@ import CreateUser           from '../components/Users/CreateUser.vue';
 import UpdateUser           from '../components/Users/UpdateUser.vue';
 import CreateMenu           from '../components/Menu/CreateMenu.vue';
 import UpdateMenu           from '../components/Menu/UpdateMenu.vue';
+import SessionGuard         from '../components/common/SessionGuard.vue';
+import UserMenu             from '../components/common/UserMenu.vue';
 
 const router = useRouter();
 
@@ -56,11 +58,6 @@ onMounted(() => {
   loadMenu();
   loadUsuarios();
 });
-
-const logout = () => {
-  localStorage.clear();
-  router.push('/login');
-};
 
 // ── Menú ────────────────────────────────────────────────────
 const menu          = ref([]);
@@ -223,11 +220,7 @@ const exportCierreAdminPDF = () => {
         <h1>EL HORNERO</h1>
       </div>
       <div class="user-actions">
-        <div class="user-profile">
-          <div class="user-avatar">A</div>
-          <span>Administrador</span>
-        </div>
-        <button class="logout-btn" @click="logout">Cerrar Sesión</button>
+        <UserMenu />
       </div>
     </header>
 
@@ -336,4 +329,6 @@ const exportCierreAdminPDF = () => {
     @success="() => { loadMenu(); notifyMenuChanged(); }"
     @close="showUpdateMenuModal = false"
   />
+
+  <SessionGuard />
 </template>

@@ -329,7 +329,7 @@ class AdminController extends Controller
         $u->usuario   = $request->usuario;
         $u->nombres   = $request->nombres;
         $u->apellidos = $request->apellidos;
-        $u->clave     = $request->clave;
+        $u->clave     = \Illuminate\Support\Facades\Hash::make($request->clave);
         $u->tipo      = $request->tipo;
         $u->save();
         return response()->json(['success' => true, 'id' => $u->id]);
@@ -350,7 +350,9 @@ class AdminController extends Controller
         $u->nombres   = $request->nombres;
         $u->apellidos = $request->apellidos;
         $u->tipo      = $request->tipo;
-        if ($request->filled('clave')) $u->clave = $request->clave;
+        if ($request->filled('clave')) {
+            $u->clave = \Illuminate\Support\Facades\Hash::make($request->clave);
+        }
         $u->save();
         return response()->json(['success' => true]);
     }
