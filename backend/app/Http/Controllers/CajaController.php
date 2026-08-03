@@ -77,6 +77,9 @@ class CajaController extends Controller
                             $detalleVenta = new VentaDetalle();
                             $detalleVenta->venta_id = $venta->id;
                             $detalleVenta->menu_id = $menu->id;
+                            $detalleVenta->nombre_producto = $menu->nombre;
+                            $detalleVenta->descripcion_producto = $menu->descripcion;
+                            $detalleVenta->categoria_producto = $menu->categoria;
                             $detalleVenta->cantidad = $qty;
                             $detalleVenta->precio_unitario = $menu->precio;
                             $detalleVenta->subtotal = $qty * $menu->precio;
@@ -116,6 +119,34 @@ class CajaController extends Controller
             'ok' => true, 
             'msg' => 'Caja cerrada', 
             'monto_final' => number_format($montoFinal, 2)
+        ]);
+    }
+
+    public function obtenerDetalleHistorico($ventaId)
+    {
+        $venta = Venta::find($ventaId);
+        if (!$venta) {
+            return response()->json(['error' => 'Venta no encontrada'], 404);
+        }
+
+        $detalles = VentaDetalle::where('venta_id', $ventaId)->get()->map(function ($detalle) {
+            return [
+                'id' => $detalle->id,
+                'nombre_producto' => $detalle->nombre_producto ?? ($detalle->menu ? $detalle->menu->nombre : 'Producto eliminado'),
+                'descripcion_producto' => $detalle->descripcion_producto ?? ($detalle->menu ? $detalle->menu->descripcion : null),
+                'categoria_producto' => $detalle->categoria_producto ?? ($detalle->menu ? $detalle->menu->categoria : null),
+                'cantidad' => $detalle->cantidad,
+                'precio_unitario' => (float) $detalle->precio_unitario,
+                'subtotal' => (float) $detalle->subtotal,
+            ];
+        });
+
+        return response()->json([
+            'venta_id' => $venta->id,
+            'fecha' => $venta->fecha,
+            'monto' => (float) $venta->monto,
+            'metodo_pago' => $venta->metodo_pago,
+            'detalles' => $detalles
         ]);
     }
 }

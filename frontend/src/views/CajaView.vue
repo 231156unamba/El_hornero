@@ -53,9 +53,21 @@ const subtotal = computed(() => totalMesaSeleccionada.value - igv.value);
 
 // Boleta Preview
 const showBoletaPreview = ref(false);
+const ventaIdActual = ref(null);
+const boletaDetallesHistoricos = ref([]);
+
 const boletaData = computed(() => {
   if (!selectedMesa.value) return null;
-  const items = selectedMesa.value.items || [];
+  
+  // Usar detalles históricos si están disponibles, sino usar items actuales
+  const items = boletaDetallesHistoricos.value.length > 0 
+    ? boletaDetallesHistoricos.value.map(d => ({
+        cantidad: d.cantidad,
+        nombre: d.nombre_producto,
+        precio: d.precio_unitario
+      }))
+    : selectedMesa.value.items || [];
+    
   const total = items.reduce((acc, i) => acc + (i.precio || 0), 0);
   const igvVal = total * 0.18;
   const subVal = total - igvVal;
@@ -68,8 +80,27 @@ const boletaData = computed(() => {
     tipo: tipoComprobante.value
   };
 });
-const openBoleta = () => { if (selectedMesa.value) showBoletaPreview.value = true; };
-const closeBoleta = () => { showBoletaPreview.value = false; };
+
+const openBoleta = async () => { 
+  if (selectedMesa.value) {
+    // Si tenemos ventaId, cargar detalles históricos
+    if (ventaIdActual.value) {
+      try {
+        const response = await api.get(`/caja/venta/${ventaIdActual.value}/detalle-historico`);
+        if (response.data && response.data.detalles) {
+          boletaDetallesHistoricos.value = response.data.detalles;
+        }
+      } catch (e) {
+        console.error('Error cargando detalles históricos:', e);
+      }
+    }
+    showBoletaPreview.value = true; 
+  }
+};
+const closeBoleta = () => { 
+  showBoletaPreview.value = false;
+  boletaDetallesHistoricos.value = [];
+};
 
 // Yape Modal
 const showYapeModal = ref(false);
@@ -81,19 +112,59 @@ const confirmarPagoYape = async () => {
 };
 
 // Cierre por rango
-const cierreFrom = ref('');
-const cierreTo = ref('');
+const cierreFrom   = ref('');
+const cierreTo     = ref('');
 const cierreNumero = ref('');
-const cierreMesa = ref('');
-const cierreTipo = ref('');
-const cierreList = ref([]);
+const cierreMesa   = ref('');
+const cierreTipo   = ref('');
+const cierreList   = ref([]);
+
+// ── Autocomplete de N° Comprobante ──────────────────────────
+const sugerencias      = ref([]);
+const showSuggestions  = ref(false);
+const suggestionIndex  = ref(-1);
+let   suggestTimer     = null;
+
+const onNumeroInput = () => {
+  clearTimeout(suggestTimer);
+  suggestionIndex.value = -1;
+  const q = (cierreNumero.value || '').trim();
+  if (q.length < 2) { sugerencias.value = []; showSuggestions.value = false; loadCierre(); return; }
+  suggestTimer = setTimeout(async () => {
+    try {
+      const r = await api.get('/admin/reportes/recibos-entregados', { params: { numero: q } });
+      sugerencias.value = (r.data || []).slice(0, 8);
+      showSuggestions.value = sugerencias.value.length > 0;
+    } catch (e) { sugerencias.value = []; }
+  }, 250);
+  loadCierre();
+};
+
+const hideSuggestions = () => setTimeout(() => { showSuggestions.value = false; }, 150);
+
+const moveSuggestion = (dir) => {
+  if (!showSuggestions.value) return;
+  suggestionIndex.value = Math.max(-1, Math.min(sugerencias.value.length - 1, suggestionIndex.value + dir));
+};
+
+const pickSuggestion = () => {
+  if (suggestionIndex.value >= 0) selectSuggestion(sugerencias.value[suggestionIndex.value]);
+};
+
+const selectSuggestion = (s) => {
+  cierreNumero.value    = s.numero;
+  showSuggestions.value = false;
+  sugerencias.value     = [];
+  loadCierre();
+};
+
 const loadCierre = async () => {
   const params = {};
-  if (cierreFrom.value) params.from = cierreFrom.value;
-  if (cierreTo.value) params.to = cierreTo.value;
+  if (cierreFrom.value)   params.from   = cierreFrom.value;
+  if (cierreTo.value)     params.to     = cierreTo.value;
   if (cierreNumero.value) params.numero = cierreNumero.value;
-  if (cierreMesa.value) params.mesa = cierreMesa.value;
-  if (cierreTipo.value) params.tipo = cierreTipo.value;
+  if (cierreMesa.value)   params.mesa   = cierreMesa.value;
+  if (cierreTipo.value)   params.tipo   = cierreTipo.value;
   try {
     const r = await api.get('/admin/reportes/recibos-entregados', { params });
     cierreList.value = r.data;
@@ -164,9 +235,7 @@ const procesarPagoSI = async (metodo) => {
 
     // Abrir ventana inmediatamente para evitar bloqueador de popups
     const printWindow = window.open('', '_blank');
-    if (printWindow) {
-        printWindow.document.write('<html><body><h3>Procesando pago y generando recibo...</h3></body></html>');
-    }
+    printWindow.document.write('<html><body><h3>Procesando pago y generando recibo...</h3></body></html>');
 
     try {
         const montoTotal = totalMesaSeleccionada.value;
@@ -181,9 +250,19 @@ const procesarPagoSI = async (metodo) => {
         });
         const ventaId = resVenta.data.ventaId;
 
-        // 2. Generar Recibo
+        // 2. Generar Recibo y obtener detalle histórico
+        let reciboDetalles = [];
         try {
-          await api.post('/caja/recibo', { venta_id: ventaId, tipo: tipoComprobante.value });
+          const reciboResponse = await api.post('/caja/recibo', { venta_id: ventaId, tipo: tipoComprobante.value });
+          reciboDetalles = reciboResponse.data.detalles || [];
+          
+          // También obtener detalle histórico completo
+          const historicoResponse = await api.get(`/caja/venta/${ventaId}/detalle-historico`);
+          if (historicoResponse.data && historicoResponse.data.detalles) {
+            reciboDetalles = historicoResponse.data.detalles;
+            ventaIdActual.value = ventaId;
+            boletaDetallesHistoricos.value = historicoResponse.data.detalles;
+          }
         } catch (eRec) {
           console.error('Recibo error:', eRec);
         }
@@ -303,14 +382,6 @@ const cerrarCaja = async () => {
             return;
         }
         
-        let w;
-        if (existingWindow) {
-            w = existingWindow;
-        } else {
-             // Fallback for manual click
-            w = window.open('', '_blank');
-        }
-        
         const d = boletaData.value;
         const conf = cajaConfig.value;
         
@@ -356,10 +427,23 @@ const cerrarCaja = async () => {
         
         html += '</body></html>';
         
-        w.document.write(html);
-        w.document.close();
-        w.focus();
-        setTimeout(() => { w.print(); }, 500);
+        // Usar iframe para impresión (más confiable que ventana nueva)
+        const iframe = document.createElement('iframe');
+        iframe.style.display = 'none';
+        document.body.appendChild(iframe);
+        
+        const iframeDoc = iframe.contentWindow.document;
+        iframeDoc.open();
+        iframeDoc.write(html);
+        iframeDoc.close();
+        
+        iframe.contentWindow.focus();
+        iframe.contentWindow.print();
+        
+        // Limpiar iframe después de impresión
+        setTimeout(() => {
+            document.body.removeChild(iframe);
+        }, 1000);
     };
 
     onMounted(() => {
@@ -545,10 +629,42 @@ const cerrarCaja = async () => {
                         <label>Hasta</label>
                         <input type="date" v-model="cierreTo" @change="loadCierre">
                       </div>
-                      <div class="filter-group">
+
+                      <!-- Búsqueda inteligente de comprobante -->
+                      <div class="filter-group filter-group--autocomplete">
                         <label>N° Comprobante</label>
-                        <input type="text" v-model="cierreNumero" @input="loadCierre" placeholder="Ej: R20260708000001">
+                        <div class="autocomplete-wrap">
+                          <input
+                            type="text"
+                            v-model="cierreNumero"
+                            @input="onNumeroInput"
+                            @focus="showSuggestions = sugerencias.length > 0"
+                            @blur="hideSuggestions"
+                            @keydown.down.prevent="moveSuggestion(1)"
+                            @keydown.up.prevent="moveSuggestion(-1)"
+                            @keydown.enter.prevent="pickSuggestion()"
+                            @keydown.escape="showSuggestions = false"
+                            placeholder="Escribe para buscar..."
+                            autocomplete="off"
+                            class="autocomplete-input"
+                          />
+                          <ul
+                            v-if="showSuggestions && sugerencias.length"
+                            class="autocomplete-list"
+                          >
+                            <li
+                              v-for="(s, i) in sugerencias"
+                              :key="s.numero"
+                              :class="['autocomplete-item', { 'autocomplete-item--active': i === suggestionIndex }]"
+                              @mousedown.prevent="selectSuggestion(s)"
+                            >
+                              <span class="sug-numero">{{ s.numero }}</span>
+                              <span class="sug-meta">{{ s.tipo }} · S/ {{ Number(s.total||0).toFixed(2) }} · {{ s.fecha ? s.fecha.slice(0,10) : '' }}</span>
+                            </li>
+                          </ul>
+                        </div>
                       </div>
+
                       <div class="filter-group">
                         <label>Mesa</label>
                         <input type="number" v-model="cierreMesa" @input="loadCierre" placeholder="Ej: 1" min="1">
@@ -561,15 +677,20 @@ const cerrarCaja = async () => {
                           <option value="FACTURA">Factura</option>
                         </select>
                       </div>
-                      <button class="btn-export" @click="loadCierre">Cargar</button>
-                      <button class="btn-export btn-export--secondary" @click="exportHistorialPDF">🖨 Exportar</button>
+                      <div class="filter-group filter-group--actions">
+                        <label>&nbsp;</label>
+                        <div class="filter-btns">
+                          <button class="btn-export" @click="loadCierre">Buscar</button>
+                          <button class="btn-export btn-export--secondary" @click="exportHistorialPDF">🖨 PDF</button>
+                        </div>
+                      </div>
                     </div>
                 </div>
                 <div class="table-responsive">
                     <table class="data-table">
                         <thead>
                             <tr>
-                                <th>ID</th>
+                                <th>#</th>
                                 <th>Número</th>
                                 <th>Tipo</th>
                                 <th>Mesa</th>
@@ -578,33 +699,38 @@ const cerrarCaja = async () => {
                                 <th>IGV</th>
                                 <th>Total</th>
                                 <th>Fecha</th>
-                                <th>Estado SUNAT</th>
-                                <th>Tipo Pago</th>
+                                <th>Método</th>
                             </tr>
                         </thead>
                         <tbody>
                             <tr v-for="r in cierreList" :key="r.id">
-                                <td>{{ r.id }}</td>
-                                <td class="fw-bold">{{ r.numero }}</td>
-                                <td>{{ r.tipo }}</td>
-                                <td>{{ r.mesa }}</td>
-                                <td class="cell-detalle">{{ r.detalle }}</td>
-                                <td>S/ {{ Number(r.subtotal || 0).toFixed(2) }}</td>
-                                <td>S/ {{ Number(r.igv || 0).toFixed(2) }}</td>
-                                <td class="text-right font-bold">S/ {{ Number(r.total || 0).toFixed(2) }}</td>
-                                <td>{{ new Date(r.fecha).toLocaleString('es-PE') }}</td>
+                                <td class="td-id">{{ r.id }}</td>
+                                <td class="fw-bold td-numero">{{ r.numero }}</td>
                                 <td>
-                                    <span :class="{'badge-method': true, 'bg-yellow-100': r.estado_sunat === 'PENDIENTE', 'bg-green-100': r.estado_sunat === 'GENERADO' || r.estado_sunat === 'ACEPTADO'}">
-                                        {{ r.estado_sunat }}
-                                    </span>
+                                  <span :class="['badge-tipo', r.tipo === 'BOLETA' ? 'badge-boleta' : 'badge-factura']">
+                                    {{ r.tipo }}
+                                  </span>
                                 </td>
-                                <td>{{ r.metodo_pago || '-' }}</td>
+                                <td class="td-center">{{ r.mesa || '—' }}</td>
+                                <td class="cell-detalle">{{ r.detalle }}</td>
+                                <td class="td-money">S/ {{ Number(r.subtotal || 0).toFixed(2) }}</td>
+                                <td class="td-money">S/ {{ Number(r.igv || 0).toFixed(2) }}</td>
+                                <td class="td-money td-total">S/ {{ Number(r.total || 0).toFixed(2) }}</td>
+                                <td class="td-fecha">{{ new Date(r.fecha).toLocaleString('es-PE') }}</td>
+                                <td>
+                                  <span :class="['badge-method', 'badge-method--' + (r.metodo_pago||'otro').toLowerCase()]">
+                                    {{ r.metodo_pago || '—' }}
+                                  </span>
+                                </td>
+                            </tr>
+                            <tr v-if="!cierreList.length">
+                              <td colspan="10" class="td-empty">Sin registros. Ajusta los filtros y presiona Buscar.</td>
                             </tr>
                         </tbody>
                     </table>
                     <div class="resume" v-if="cierreList.length">
-                      <span>Total Operaciones: {{ cierreList.length }}</span>
-                      <span class="resume-total">Total Ventas: S/ {{ cierreList.reduce((a,b)=>a + Number(b.total||0),0).toFixed(2) }}</span>
+                      <span>{{ cierreList.length }} operación{{ cierreList.length !== 1 ? 'es' : '' }}</span>
+                      <span class="resume-total">Total: S/ {{ cierreList.reduce((a,b)=>a + Number(b.total||0),0).toFixed(2) }}</span>
                     </div>
                 </div>
             </div>

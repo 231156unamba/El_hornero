@@ -471,6 +471,21 @@ class AdminController extends Controller
                 ->distinct()->get()
                 ->map(function ($r) {
                     $pedidos = Pedido::where('venta_id', $r->venta_id)->get();
+                    
+                    // Obtener detalle histórico desde venta_detalle
+                    $detallesHistoricos = \App\Models\VentaDetalle::where('venta_id', $r->venta_id)->get();
+                    $detalleTexto = '';
+                    
+                    if ($detallesHistoricos->isNotEmpty()) {
+                        foreach ($detallesHistoricos as $det) {
+                            $nombre = $det->nombre_producto ?? ($det->menu ? $det->menu->nombre : 'Producto eliminado');
+                            $detalleTexto .= "{$det->cantidad}x {$nombre} (S/ {$det->precio_unitario}); ";
+                        }
+                    } else {
+                        // Fallback a pedidos si no hay detalles históricos
+                        $detalleTexto = $pedidos->pluck('detalle')->implode('; ');
+                    }
+                    
                     return [
                         'id'          => (int)    $r->id,
                         'numero'      => (string) $r->numero,
@@ -485,7 +500,7 @@ class AdminController extends Controller
                         'venta_fecha' => $r->venta_fecha ? (string) $r->venta_fecha : null,
                         'metodo_pago' => (string) $r->metodo_pago,
                         'mesa'        => $pedidos->pluck('mesa')->unique()->implode(', '),
-                        'detalle'     => $pedidos->pluck('detalle')->implode('; '),
+                        'detalle'     => trim($detalleTexto),
                     ];
                 })
         );

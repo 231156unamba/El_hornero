@@ -7,7 +7,9 @@ const togglingId = ref(null);
 
 const loadMenu = async () => {
   try {
-    const r = await api.get('/menu');
+    // admin=1 para que incluya también los artículos inactivos (blanco y negro)
+    // así el cocinero puede re-habilitarlos si fue un accidente
+    const r = await api.get('/menu', { params: { admin: '1' } });
     menu.value = r.data;
   } catch (e) {
     console.error('Error al cargar menú:', e);
@@ -243,8 +245,9 @@ onMounted(() => {
 }
 
 .kmm-item-disabled {
-  opacity: 0.6;
+  opacity: 1;
   background: #f8fafc;
+  filter: grayscale(100%);
 }
 
 .kmm-item-img {

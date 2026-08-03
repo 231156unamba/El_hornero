@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\Recibo;
 use App\Models\Venta;
+use App\Models\VentaDetalle;
 
 class ReciboController extends Controller
 {
@@ -39,6 +40,18 @@ class ReciboController extends Controller
         $recibo->tipo = $tipo;
         $recibo->save();
 
+        // Obtener detalle histórico de la venta
+        $detalles = VentaDetalle::where('venta_id', $venta->id)->get()->map(function ($detalle) {
+            return [
+                'nombre_producto' => $detalle->nombre_producto ?? ($detalle->menu ? $detalle->menu->nombre : 'Producto eliminado'),
+                'descripcion_producto' => $detalle->descripcion_producto ?? ($detalle->menu ? $detalle->menu->descripcion : null),
+                'categoria_producto' => $detalle->categoria_producto ?? ($detalle->menu ? $detalle->menu->categoria : null),
+                'cantidad' => $detalle->cantidad,
+                'precio_unitario' => (float) $detalle->precio_unitario,
+                'subtotal' => (float) $detalle->subtotal,
+            ];
+        });
+
         return response()->json([
             'ok' => true,
             'msg' => 'Recibo generado',
@@ -47,7 +60,8 @@ class ReciboController extends Controller
             'subtotal' => $subtotal,
             'igv' => $igv,
             'total' => $total,
-            'tipo' => $tipo
+            'tipo' => $tipo,
+            'detalles' => $detalles
         ]);
     }
 }
