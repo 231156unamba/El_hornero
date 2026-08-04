@@ -1,6 +1,7 @@
 <script setup>
 import { ref } from 'vue';
 import './CajaControl.css';
+import api from '../../api';
 
 const props = defineProps({
   cajaForm: {
@@ -19,18 +20,33 @@ const emit = defineEmits(['submit', 'update:cajaForm', 'update:cierreAdmin', 'ex
 
 const yapeQrFile = ref(null);
 const selectedRecibo = ref(null);
+const detallesHistoricos = ref([]);
 
 const onYapeQrChange = (e) => {
   const files = e?.target?.files;
   yapeQrFile.value = files && files[0] ? files[0] : null;
 };
 
-const openDetail = (recibo) => {
+const openDetail = async (recibo) => {
   selectedRecibo.value = recibo;
+  
+  // Cargar detalles históricos si existe venta_id
+  if (recibo.venta_id) {
+    try {
+      const response = await api.get(`/caja/venta/${recibo.venta_id}/detalle-historico`);
+      if (response.data && response.data.detalles) {
+        detallesHistoricos.value = response.data.detalles;
+      }
+    } catch (e) {
+      console.error('Error cargando detalles históricos:', e);
+      detallesHistoricos.value = [];
+    }
+  }
 };
 
 const closeDetail = () => {
   selectedRecibo.value = null;
+  detallesHistoricos.value = [];
 };
 
 const fmt = (val) => `S/. ${Number(val || 0).toFixed(2)}`;
@@ -317,9 +333,20 @@ const badgePago = (metodo) => {
           </div>
 
           <!-- Detalle del pedido -->
-          <div class="caja-detail-group" v-if="selectedRecibo.detalle">
+          <div class="caja-detail-group" v-if="selectedRecibo.detalle || detallesHistoricos.length > 0">
             <div class="caja-detail-group-title">Detalle del pedido</div>
-            <div class="caja-detail-detalle">{{ selectedRecibo.detalle }}</div>
+            
+            <!-- Mostrar detalles históricos si están disponibles -->
+            <div v-if="detallesHistoricos.length > 0" class="caja-detail-items">
+              <div v-for="(item, index) in detallesHistoricos" :key="index" class="caja-detail-item">
+                <span class="caja-detail-item-qty">{{ item.cantidad }}x</span>
+                <span class="caja-detail-item-name">{{ item.nombre_producto }}</span>
+                <span class="caja-detail-item-price">{{ fmt(item.precio_unitario) }}</span>
+              </div>
+            </div>
+            
+            <!-- Fallback a detalle string si no hay detalles históricos -->
+            <div v-else class="caja-detail-detalle">{{ selectedRecibo.detalle }}</div>
           </div>
 
         </div>

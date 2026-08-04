@@ -4,11 +4,14 @@ import { useRouter } from 'vue-router';
 import api from '../api';
 import SessionGuard from '../components/common/SessionGuard.vue';
 import UserMenu from '../components/common/UserMenu.vue';
+import KitchenMenuView from '../components/cocina/KitchenMenuView.vue';
+import AssistantChat from '../components/common/AssistantChat.vue';
 
 const router = useRouter();
 const pedidos = ref([]);
 const avisos = ref([]);
 let intervalId = null;
+const activeView = ref('pedidos');
 
 onMounted(() => {
   const rol = localStorage.getItem('rol');
@@ -19,6 +22,17 @@ onMounted(() => {
     intervalId = setInterval(fetchPedidos, 5000);
   }
 });
+
+const setActiveView = (view) => {
+  activeView.value = view;
+  if (view === 'pedidos' && !intervalId) {
+    fetchPedidos();
+    intervalId = setInterval(fetchPedidos, 5000);
+  } else if (view === 'menu' && intervalId) {
+    clearInterval(intervalId);
+    intervalId = null;
+  }
+};
 
 onUnmounted(() => {
   if (intervalId) clearInterval(intervalId);
@@ -82,8 +96,25 @@ const preparados = computed(() => pedidos.value.filter(p => p.estado === 'prepar
     </header>
 
     <main class="content-area">
+      <!-- Navigation Tabs -->
+      <nav class="kitchen-nav">
+        <button
+          :class="['kitchen-nav-btn', { 'kitchen-nav-btn--active': activeView === 'pedidos' }]"
+          @click="setActiveView('pedidos')"
+        >
+          🍳 Pedidos
+        </button>
+        <button
+          :class="['kitchen-nav-btn', { 'kitchen-nav-btn--active': activeView === 'menu' }]"
+          @click="setActiveView('menu')"
+        >
+          📋 Menú
+        </button>
+      </nav>
+
       <div class="main-panel">
-        <div class="kitchen-grid">
+        <!-- Vista de Pedidos -->
+        <div v-if="activeView === 'pedidos'" class="kitchen-grid">
 
           <!-- Columna 1: En Cocina -->
           <div class="kitchen-col">
@@ -214,6 +245,11 @@ const preparados = computed(() => pedidos.value.filter(p => p.estado === 'prepar
           </div>
 
         </div>
+
+        <!-- Vista de Menú -->
+        <div v-if="activeView === 'menu'">
+          <KitchenMenuView />
+        </div>
       </div>
     </main>
 
@@ -227,6 +263,7 @@ const preparados = computed(() => pedidos.value.filter(p => p.estado === 'prepar
   </div>
 
   <SessionGuard />
+  <AssistantChat module="cocina" />
 </template>
 
 <style src="../styles/cocina.css" scoped></style>

@@ -61,6 +61,38 @@
   margin: 0 auto;
 }
 
+/* ── Kitchen Navigation ── */
+.cocina-page .kitchen-nav {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 24px;
+  justify-content: center;
+}
+
+.cocina-page .kitchen-nav-btn {
+  padding: 12px 24px;
+  border-radius: 10px;
+  border: 2px solid transparent;
+  font-weight: 700;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: white;
+  color: var(--text-muted);
+  border-color: #e2e8f0;
+}
+
+.cocina-page .kitchen-nav-btn:hover {
+  background: var(--gray-light);
+  border-color: #cbd5e1;
+}
+
+.cocina-page .kitchen-nav-btn--active {
+  background: var(--orange-light);
+  color: var(--orange-dark);
+  border-color: var(--orange);
+}
+
 .cocina-page .main-panel {
   background: rgba(241, 175, 50, 0.04);
   border: 1px solid rgba(241, 175, 50, 0.12);

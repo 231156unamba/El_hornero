@@ -444,6 +444,52 @@ input[type="file"].caja-form-input {
   word-break: break-word;
 }
 
+/* Detalle de items históricos */
+.caja-detail-items {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.caja-detail-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  background: #f9fafb;
+  border: 1px solid #f0f0f0;
+  border-radius: 8px;
+  transition: background 0.15s;
+}
+
+.caja-detail-item:hover {
+  background: #f0f7ff;
+}
+
+.caja-detail-item-qty {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #6b7280;
+  background: #e5e7eb;
+  padding: 4px 8px;
+  border-radius: 6px;
+  min-width: 40px;
+  text-align: center;
+}
+
+.caja-detail-item-name {
+  flex: 1;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #111827;
+}
+
+.caja-detail-item-price {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #ef6c00;
+}
+
 /* ── Responsive ── */
 @media (max-width: 900px) {
   .caja-ventas-header {

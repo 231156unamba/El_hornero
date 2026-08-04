@@ -781,3 +781,97 @@
 .boleta-totals .total {
     font-weight: 800;
 }
+
+/* ── Historial — mejoras de tabla ── */
+.td-id    { color: #9ca3af; font-size: 0.8rem; }
+.td-numero{ font-weight: 700; font-size: 0.88rem; }
+.td-center{ text-align: center; }
+.td-money { font-weight: 600; white-space: nowrap; }
+.td-total { color: #ef6c00; font-weight: 800; }
+.td-fecha { white-space: nowrap; font-size: 0.82rem; color: #6b7280; }
+.td-empty { text-align: center; padding: 40px; color: #9ca3af; font-size: 0.9rem; }
+
+/* Badges tipo de comprobante */
+.badge-tipo {
+  display: inline-block; padding: 3px 10px;
+  border-radius: 999px; font-size: 0.72rem; font-weight: 700;
+}
+.badge-boleta  { background: #e0f2f1; color: #00695c; }
+.badge-factura { background: #e3f2fd; color: #1565c0; }
+
+/* Badges método de pago */
+.badge-method {
+  display: inline-block; padding: 3px 9px;
+  border-radius: 999px; font-size: 0.72rem; font-weight: 700;
+}
+.badge-method--efectivo { background: #e8f5e9; color: #2e7d32; }
+.badge-method--tarjeta  { background: #e8eaf6; color: #283593; }
+.badge-method--yape     { background: #fce4ec; color: #880e4f; }
+.badge-method--otro     { background: #f5f5f5; color: #616161; }
+
+/* Botones de filtro alineados */
+.filter-group--actions { justify-content: flex-end; }
+.filter-btns { display: flex; gap: 8px; }
+
+/* ── Autocomplete de comprobante ── */
+.filter-group--autocomplete { min-width: 220px; position: relative; }
+
+.autocomplete-wrap { position: relative; }
+
+.autocomplete-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 8px 12px;
+  border: 1.5px solid #e5e7eb;
+  border-radius: 9px;
+  font-size: 0.88rem;
+  font-family: inherit;
+  color: #111827;
+  background: #fff;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.autocomplete-input:focus {
+  outline: none;
+  border-color: #ef6c00;
+  box-shadow: 0 0 0 3px rgba(239,108,0,0.1);
+}
+
+.autocomplete-list {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  background: #fff;
+  border: 1.5px solid #e5e7eb;
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+  list-style: none;
+  margin: 0;
+  padding: 4px 0;
+  z-index: 9999;
+  max-height: 280px;
+  overflow-y: auto;
+}
+
+.autocomplete-item {
+  padding: 10px 14px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  transition: background 0.12s;
+  border-bottom: 1px solid #f9fafb;
+}
+.autocomplete-item:last-child { border-bottom: none; }
+.autocomplete-item:hover,
+.autocomplete-item--active { background: #fff7f0; }
+
+.sug-numero {
+  font-weight: 700;
+  font-size: 0.88rem;
+  color: #111827;
+}
+.sug-meta {
+  font-size: 0.75rem;
+  color: #9ca3af;
+}

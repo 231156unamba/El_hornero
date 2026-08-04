@@ -25,6 +25,17 @@ const userName = computed(() => {
   return user.value.usuario || 'Usuario';
 });
 
+const displayRole = computed(() => {
+  const role = (user.value.rol || '').toLowerCase();
+  const roleMap = {
+    'admin': 'administrador',
+    'cocina': 'cocinero',
+    'pedido': 'mesero',
+    'caja': 'cajero'
+  };
+  return roleMap[role] || user.value.rol || '';
+});
+
 const handleLogout = async () => {
   open.value = false;
   await logoutSession(router);
@@ -69,7 +80,7 @@ onMounted(() => {
         <div class="dropdown-info">
           <div class="dropdown-name">{{ fullName }}</div>
           <div class="dropdown-username">{{ user.usuario }}</div>
-          <div class="dropdown-role">{{ user.rol }}</div>
+          <div class="dropdown-role">{{ displayRole }}</div>
         </div>
       </div>
       <button class="logout-btn" @click="handleLogout">Cerrar sesión</button>

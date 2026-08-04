@@ -35,6 +35,7 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/estado',  [CajaController::class,  'estado']);
         Route::post('/venta',  [CajaController::class,  'registrarVenta']);
         Route::post('/recibo', [ReciboController::class, 'generar']);
+        Route::get('/venta/{id}/detalle-historico', [CajaController::class, 'obtenerDetalleHistorico']);
     });
 
     // ── Pedidos ───────────────────────────────────────────────────
