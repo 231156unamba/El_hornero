@@ -5,6 +5,7 @@ import api from '../api';
 import SessionGuard from '../components/common/SessionGuard.vue';
 import UserMenu from '../components/common/UserMenu.vue';
 import KitchenMenuView from '../components/cocina/KitchenMenuView.vue';
+import AssistantChat from '../components/common/AssistantChat.vue';
 
 const router = useRouter();
 const pedidos = ref([]);
@@ -262,6 +263,7 @@ const preparados = computed(() => pedidos.value.filter(p => p.estado === 'prepar
   </div>
 
   <SessionGuard />
+  <AssistantChat module="cocina" />
 </template>
 
 <style src="../styles/cocina.css" scoped></style>

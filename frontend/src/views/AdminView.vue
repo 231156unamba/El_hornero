@@ -20,6 +20,8 @@ import UpdateMenu           from '../components/Menu/UpdateMenu.vue';
 import SessionGuard         from '../components/common/SessionGuard.vue';
 import UserMenu             from '../components/common/UserMenu.vue';
 
+import AssistantChat from '../components/common/AssistantChat.vue';
+
 const router = useRouter();
 
 // ── BroadcastChannel para notificar cambios de menú ──────────
@@ -331,4 +333,5 @@ const exportCierreAdminPDF = () => {
   />
 
   <SessionGuard />
+  <AssistantChat module="admin" />
 </template>

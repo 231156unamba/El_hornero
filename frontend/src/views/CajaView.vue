@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router';
 import api from '../api';
 import SessionGuard from '../components/common/SessionGuard.vue';
 import UserMenu from '../components/common/UserMenu.vue';
+import AssistantChat from '../components/common/AssistantChat.vue';
 
 const router = useRouter();
 const apiOrigin = new URL(api.defaults.baseURL).origin;
@@ -802,6 +803,7 @@ const cerrarCaja = async () => {
   </div>
 
   <SessionGuard />
+  <AssistantChat module="caja" />
 </template>
 
 <style src="../styles/caja.css" scoped></style>

@@ -5,6 +5,8 @@ import api from '../api';
 import SessionGuard from '../components/common/SessionGuard.vue';
 import UserMenu from '../components/common/UserMenu.vue';
 
+import AssistantChat from '../components/common/AssistantChat.vue';
+
 const router = useRouter();
 const pedidos           = ref([]);
 const pedidosAnteriores = ref([]);
@@ -479,14 +481,33 @@ const formatHora = (f) => {
   </div>
 
   <SessionGuard />
+  <AssistantChat module="pedido" />
 </template>
+
+<style scoped>
+.toast-container {
+  position: fixed; top: 100px; right: 20px;
+  display: flex; flex-direction: column; gap: 10px; z-index: 10000;
+}
+.toast {
+  background: #10b981; color: white;
+  padding: 15px 25px; border-radius: 8px; font-weight: 700;
+  box-shadow: 0 4px 12px rgba(16,185,129,0.4);
+}
+.toast-enter-active { animation: slideIn 0.3s ease-out; }
+.toast-leave-active { animation: slideIn 0.3s ease-out reverse; }
+@keyframes slideIn {
+  from { transform: translateX(100%); opacity: 0; }
+  to   { transform: translateX(0);    opacity: 1; }
+}
+</style>
 
 <style src="../styles/pedido.css" scoped></style>
 
 <style scoped>
 .toast-container {
   position: fixed; top: 100px; right: 20px;
-  display: flex; flex-direction: column; gap: 10px; z-index: 1000;
+  display: flex; flex-direction: column; gap: 10px; z-index: 10000;
 }
 .toast {
   background: #10b981; color: white;
