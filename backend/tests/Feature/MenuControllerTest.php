@@ -26,6 +26,7 @@ class MenuControllerTest extends TestCase
             $table->text('descripcion');
             $table->string('imagen')->nullable();
             $table->string('categoria')->default('comida');
+            $table->string('estado')->default('habilitado');
             $table->decimal('discount_percentage', 5, 2)->nullable();
             $table->timestamp('discount_expires_at')->nullable();
         });
